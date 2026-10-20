@@ -1,0 +1,1195 @@
+/* Student History page — folder-style record browser.
+   Layered on top of style.css; reuses its color/shadow tokens so this page
+   matches the rest of the app instead of introducing a second design language. */
+
+/* ---------- Student picker ---------- */
+.sh-picker {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.sh-picker .sh-picker-field {
+    flex: 1 1 320px;
+    min-width: 260px;
+    position: relative;
+}
+
+.sh-picker label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.sh-picker input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.sh-picker input[type="text"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(18, 58, 107, 0.12);
+}
+
+.sh-picker select {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    min-width: 90px;
+}
+
+.sh-picker select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(18, 58, 107, 0.12);
+}
+
+/* ---------- Persistent, filterable student list ---------- */
+.sh-slist-count {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.sh-slist-count strong { color: var(--primary-color); }
+
+.sh-slist-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.sh-slist-pagination .sh-slist-page-info {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.sh-slist {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    padding-right: 2px;
+}
+
+.sh-slist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    background: white;
+    transition: var(--transition);
+}
+
+.sh-slist-item:hover {
+    background: var(--light-color);
+    border-color: var(--secondary-color);
+}
+
+.sh-slist-item.active {
+    border-color: var(--secondary-color);
+    background: rgba(18, 58, 107, 0.06);
+}
+
+.sh-slist-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--brand-gradient);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.sh-slist-main { flex: 1; min-width: 0; }
+
+.sh-slist-name {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 13.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sh-slist-meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+.sh-slist-empty,
+.sh-slist-loading {
+    grid-column: 1 / -1;
+    padding: 24px 10px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+.sh-back-bar { margin-bottom: 16px; }
+
+/* ---------- Selected student header ---------- */
+.sh-student-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.sh-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--brand-gradient);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.sh-student-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary-color);
+    letter-spacing: -0.02em;
+}
+
+.sh-student-sub {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.sh-stat-chips {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.sh-stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--light-color);
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-fast);
+}
+
+.sh-stat-chip:hover {
+    border-color: var(--secondary-color);
+}
+
+.sh-stat-chip.active {
+    border-color: var(--secondary-color);
+    background: rgba(18, 58, 107, 0.1);
+    color: var(--secondary-color);
+}
+
+.sh-stat-chip .sh-stat-count {
+    background: var(--primary-color);
+    color: white;
+    border-radius: 999px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+}
+
+/* ---------- Filter bar ---------- */
+.sh-filter-bar {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto auto;
+    gap: 14px;
+    align-items: end;
+}
+
+@media (max-width: 1100px) {
+    .sh-filter-bar { grid-template-columns: 1fr 1fr; }
+}
+
+.sh-filter-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-light);
+}
+
+.sh-filter-field input,
+.sh-filter-field select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+}
+
+.sh-filter-field input:focus,
+.sh-filter-field select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+.sh-filter-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.sh-result-count {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-light);
+}
+
+.sh-result-count strong { color: var(--primary-color); }
+
+/* ---------- Folder nav (left, narrow) + content panel (right, wide) ---------- */
+.sh-folder-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 18px;
+    margin-top: 20px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .sh-folder-layout { grid-template-columns: 1fr; }
+}
+
+.sh-folder-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sh-folder-tab {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    background: white;
+    border: 1px solid #e8eff7;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition);
+}
+
+.sh-folder-tab:hover {
+    border-color: var(--secondary-color);
+}
+
+.sh-folder-tab.active {
+    border-color: var(--secondary-color);
+    background: rgba(18, 58, 107, 0.06);
+    box-shadow: var(--shadow-md);
+}
+
+.sh-folder-tab.sh-folder-hidden { display: none; }
+
+.sh-folder-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.sh-folder-tab[data-folder="referrals"] .sh-folder-icon { background: linear-gradient(135deg, #a15c00, #b3261e); }
+.sh-folder-tab[data-folder="counseling"] .sh-folder-icon { background: linear-gradient(135deg, #1d5aa8, #1a4c88); }
+.sh-folder-tab[data-folder="follow_ups"] .sh-folder-icon { background: linear-gradient(135deg, #1b7f5a, #1d5aa8); }
+.sh-folder-tab[data-folder="appointments"] .sh-folder-icon { background: linear-gradient(135deg, #1a4c88, #1d5aa8); }
+
+.sh-folder-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--primary-color);
+}
+
+.sh-folder-subtitle {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.sh-folder-count {
+    margin-left: auto;
+    background: var(--light-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: 999px;
+    min-width: 30px;
+    height: 26px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sh-folder-content {
+    background: white;
+    border: 1px solid #e8eff7;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    min-height: 380px;
+}
+
+.sh-folder-content-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e7edf4;
+}
+
+.sh-timeline-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-light);
+    margin-bottom: 2px;
+}
+
+.sh-folder-content-title {
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--primary-color);
+}
+
+.sh-folder-body {
+    display: none;
+}
+
+.sh-folder-body.active {
+    display: block;
+}
+
+/* ---------- Merged activity timeline (all record types together) ---------- */
+.sh-timeline-group {
+    position: relative;
+    margin-top: 22px;
+}
+
+.sh-timeline-group:first-child {
+    margin-top: 0;
+}
+
+.sh-timeline-group::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 26px;
+    bottom: 20px;
+    width: 2px;
+    background: #e7edf4;
+    z-index: 0;
+}
+
+.sh-timeline-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-light);
+    margin-bottom: 10px;
+}
+
+.sh-timeline-item {
+    position: relative;
+    z-index: 1;
+}
+
+.sh-timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+
+.sh-timeline-text {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--text-color);
+}
+
+.sh-timeline-text strong {
+    color: var(--primary-color);
+}
+
+.sh-timeline-meta {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Case thread: a counseling case + its follow-ups shown as one
+   Day 1/2/3... sub-timeline, instead of separate flat entries ---------- */
+.sh-case-thread {
+    background: white;
+    border: 1px solid #e8eff7;
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 10px;
+}
+
+.sh-case-thread:first-child {
+    margin-top: 0;
+}
+
+.sh-case-thread-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e7edf4;
+    margin-bottom: 14px;
+}
+
+.sh-case-thread-title {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--primary-color);
+}
+
+.sh-case-thread-sub {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.sh-case-thread-status {
+    flex-shrink: 0;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+}
+
+.sh-case-thread-days {
+    position: relative;
+}
+
+.sh-case-thread-days::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #e7edf4;
+    z-index: 0;
+}
+
+.sh-case-day {
+    position: relative;
+    z-index: 1;
+    margin-top: 16px;
+}
+
+.sh-case-day:first-child {
+    margin-top: 0;
+}
+
+.sh-case-day-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sh-case-day-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--warn);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.sh-case-day-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--light-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 0;
+}
+
+.sh-case-day-pill {
+    background: var(--warn-bg);
+    color: var(--warn);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+/* The counseling case drawer's flat rail (see buildCaseTimelineRail() in
+   counseling.js) — one node per follow_up row plus the case-opened node,
+   instead of student-history.js's day-grouped thread. Same circular-badge
+   treatment #shBody-timeline already applies to this rail's day badges
+   (see above), scoped the same way here since this rail renders outside
+   that container. */
+.case-timeline-rail .sh-case-day-badge {
+    background: linear-gradient(140deg, #e0a94a, #c98a2b);
+    border-radius: 50%;
+}
+.case-timeline-rail .sh-case-note-icon {
+    background: linear-gradient(140deg, #5a8bd0, #3e6fb0);
+    color: #fff;
+}
+
+/* Node-type modifiers, layered on top of the circular badge above — a
+   session, a follow-up, and the case-opened node read apart at a glance,
+   matching the colour already used for each one's own action button (Add
+   Counseling Session = success/green, Add Student Follow-up = warn/amber).
+   Selector repeats .sh-case-day-badge (not just the modifier alone) so its
+   specificity matches — and wins the tie by coming later — against the
+   ".case-timeline-rail .sh-case-day-badge" gradient rule above. */
+.sh-case-day-badge.sh-case-day-badge--opened { background: var(--info); }
+.sh-case-day-badge.sh-case-day-badge--session { background: var(--ok); }
+.sh-case-day-pill--session { background: var(--ok-bg); color: var(--ok); }
+
+/* The open-ended final node showing the case is still awaiting its next
+   session/follow-up — hollow instead of filled so it reads as "not an
+   event yet" rather than another logged entry. */
+.sh-case-day-badge.sh-case-day-badge--ongoing {
+    background: transparent;
+    border: 2px dashed var(--border);
+    color: var(--text-light);
+}
+.sh-case-day-ongoing-text {
+    color: var(--text-light);
+    font-size: 13px;
+    font-style: italic;
+}
+
+.sh-case-note-row,
+.sh-case-done-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-left: 38px;
+}
+
+.sh-case-done-row {
+    margin-top: 16px;
+    padding-top: 14px;
+    padding-left: 0;
+    border-top: 1px dashed #e7edf4;
+}
+
+.sh-case-note-icon,
+.sh-case-done-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.sh-case-done-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.sh-case-note-icon {
+    background: var(--info-bg);
+    color: var(--info);
+}
+
+.sh-case-done-icon {
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+.sh-case-note-body {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.sh-case-note-head {
+    color: var(--text-light);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.sh-case-note-head strong {
+    color: var(--primary-color);
+}
+
+.sh-case-note-text {
+    color: var(--text-color);
+    background: var(--light-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    white-space: pre-line;
+}
+
+.sh-case-done-summary {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 3px;
+}
+
+.sh-folder-empty {
+    padding: 24px 10px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+/* ---------- Referral / counseling-case thread: collapses to just its
+   summary header, click to reveal the full Day 1/2/3... story
+   (shBuildReferralThreadEntry() / shBuildCaseThreadEntry() both render this
+   same .sh-referral-thread-* markup). ---------- */
+.sh-referral-thread-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sh-referral-thread-chevron {
+    color: var(--text-light);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sh-referral-thread.open .sh-referral-thread-chevron {
+    transform: rotate(180deg);
+}
+
+.sh-referral-thread-body {
+    display: none;
+}
+
+.sh-referral-thread.open .sh-referral-thread-body {
+    display: block;
+    margin-top: 14px;
+}
+
+/* ---------- Referral steps: one entry per logged event (submission, each
+   screening, each stage advance) — deliberately flat, not grouped into a
+   combined "Day N — A + B + C" header, so every step a counselor/teacher
+   logged reads as its own clear line instead of several actions crammed
+   into one. (shBuildReferralThreadEntry) ---------- */
+.sh-referral-steps {
+    position: relative;
+    padding-left: 4px;
+}
+
+.sh-referral-step {
+    display: flex;
+    gap: 14px;
+    position: relative;
+    padding-bottom: 20px;
+}
+
+.sh-referral-step:last-child {
+    padding-bottom: 0;
+}
+
+.sh-referral-step-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--secondary-color);
+    margin-top: 4px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Matches each step's pill color (see PILL_BADGE_CLASS in
+   shBuildReferralThreadEntry) so the dot itself signals what happened at a
+   glance — green once a stage actually finishes, red for the final case
+   closure, gray for an unlogged gap, and the default navy otherwise for
+   real work still in progress. */
+.sh-referral-step-dot.sh-dot-badge-completed {
+    background: var(--ok);
+}
+
+.sh-referral-step-dot.sh-dot-badge-rejected {
+    background: var(--danger);
+}
+
+.sh-referral-step-dot.sh-dot-badge-gap {
+    background: #b7c0cc;
+}
+
+.sh-referral-step-dot.sh-dot-badge-in-progress {
+    background: var(--info);
+}
+
+.sh-referral-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 16px;
+    bottom: -4px;
+    width: 2px;
+    background: #e7edf4;
+}
+
+.sh-referral-step-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.sh-referral-step-title {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--primary-color);
+}
+
+.sh-referral-step-meta {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+.sh-referral-step-stage {
+    font-size: 12.5px;
+    color: var(--text-light);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sh-referral-step-note {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+/* ---------- File items inside a folder ---------- */
+.sh-file {
+    background: white;
+    border: 1px solid #e8eff7;
+    border-radius: 10px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.sh-file:first-child { margin-top: 0; }
+
+.sh-file-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+}
+
+.sh-file-icon {
+    color: var(--text-light);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.sh-file-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.sh-file-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--primary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sh-file-meta {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 3px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.sh-file-chevron {
+    color: var(--text-light);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.sh-file.open .sh-file-chevron {
+    transform: rotate(90deg);
+}
+
+.sh-file-detail {
+    display: none;
+    padding: 0 14px 14px 38px;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.sh-file.open .sh-file-detail {
+    display: block;
+}
+
+.sh-detail-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px dashed #e7edf4;
+}
+
+.sh-detail-row:last-child { border-bottom: none; }
+
+.sh-detail-label {
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.sh-detail-value {
+    color: var(--text-color);
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+.sh-subheading {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-light);
+    margin: 12px 0 6px;
+}
+
+.sh-subheading:first-child { margin-top: 0; }
+
+.sh-mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sh-mini-item {
+    background: var(--light-color);
+    border-left: 3px solid var(--secondary-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+}
+
+.sh-mini-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 3px;
+}
+
+/* ---------- Empty / loading states ---------- */
+.sh-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
+}
+
+.sh-empty-state i {
+    font-size: 42px;
+    color: #d8e0ea;
+    margin-bottom: 14px;
+    display: block;
+}
+
+.sh-empty-state h3 {
+    color: var(--primary-color);
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+/* ===== "List you can open" timeline redesign (2026-08-27, v2) =====
+   Superseded the dark "spotlight" panel this same block used to hold (a
+   navy card with light content cards floating on it) after the user shared
+   a lighter, flatter reference: individual white cards sitting directly on
+   the page's own light background — no big wrapping panel, no header bar
+   above the list, each item read at a glance via an icon avatar + eyebrow
+   label + right-aligned date/summary/status/chevron, expanding in place
+   into the same Day 1/2/3 connecting-line story. Kept from the dark
+   version: the gradient icon chips (day badge / note / done), the light
+   inset boxes for note text, the fade-in-on-scroll animation — all of
+   those already worked fine on a light background, they just needed
+   shape/line-color tweaks below, not a rewrite. */
+
+.sh-folder-content:has(#shBody-timeline.active) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.sh-folder-content:has(#shBody-timeline.active) .sh-folder-content-header {
+    display: none;
+}
+
+/* Date-group headers ("Today" / "Aug 25, 2026") and the connecting line
+   that ran between groups belonged to the old flat-list-of-everything
+   view — each referral thread now carries its own self-contained story
+   and status, so a card date/summary already says what's needed. */
+#shBody-timeline .sh-timeline-group::before {
+    display: none;
+}
+
+#shBody-timeline .sh-timeline-group-label {
+    display: none;
+}
+
+#shBody-timeline .sh-timeline-group {
+    margin-top: 14px;
+}
+
+/* flat entries: appointments / standalone follow-ups — plain white cards,
+   same spacing rhythm as a referral thread card below. */
+#shBody-timeline .sh-file {
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+}
+
+#shBody-timeline .sh-folder-empty {
+    color: var(--text-light);
+}
+
+/* ---------- Referral thread row: icon avatar + eyebrow + title/sub on the
+   left, date/summary/status/chevron on the right — collapses to just this
+   row (see .sh-referral-thread-body above), same card treatment as a
+   flat .sh-file entry. ---------- */
+.sh-referral-thread {
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+}
+
+.sh-referral-thread-toggle {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.sh-referral-row-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #4f7fd6, #2a4f96);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.sh-referral-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.sh-referral-row-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #2a4f96;
+}
+
+.sh-referral-row-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--primary-color);
+    margin-top: 2px;
+}
+
+.sh-referral-row-sub {
+    font-size: 12.5px;
+    color: var(--text-light);
+    margin-top: 2px;
+}
+
+/* Marks the referral<->counseling-case connection in each other's collapsed
+   subtitle (see shBuildCaseThreadEntry()'s "From Referral #..." and
+   shBuildReferralThreadEntry()'s "Linked Counseling Case #..." in
+   student-history.js) — colored distinctly from the rest of the subtitle
+   so the link is visible at a glance without expanding either card. */
+.sh-linked-tag {
+    color: #1a4c88;
+    font-weight: 600;
+}
+
+/* A counseling case with no source referral (opened directly, not from a
+   referral workflow) — same subtitle slot as .sh-linked-tag above, but
+   neutral gray instead of blue since there's no link to follow. */
+.sh-walkin-tag {
+    color: #64748b;
+}
+
+.sh-referral-row-meta {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.sh-referral-row-dates {
+    font-size: 12.5px;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.sh-referral-row-summary {
+    font-size: 12px;
+    color: #9aa8bc;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+/* counseling case thread — plain white card with a Day 1/2/3 sub-story */
+#shBody-timeline .sh-case-thread {
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+}
+
+/* Day badge, note icon, and done icon — circular chips (was rounded-square
+   in the dark version) in the same warm/blue/green gradient throughout, so
+   the entry type reads at a glance without reading the text. */
+#shBody-timeline .sh-case-day-badge {
+    background: linear-gradient(140deg, #e0a94a, #c98a2b);
+    border-radius: 50%;
+}
+
+/* Node-type modifiers (see .sh-case-day-badge--session etc. above) need
+   re-declaring here at #id + 2-class specificity — an ID selector like the
+   one above outweighs any number of plain classes, so the plain modifier
+   rule alone can never win inside this container. */
+#shBody-timeline .sh-case-day-badge.sh-case-day-badge--opened { background: var(--info); }
+#shBody-timeline .sh-case-day-badge.sh-case-day-badge--session { background: var(--ok); }
+#shBody-timeline .sh-case-day-badge.sh-case-day-badge--ongoing {
+    background: transparent;
+    border: 2px dashed var(--border);
+}
+
+#shBody-timeline .sh-case-note-icon {
+    background: linear-gradient(140deg, #5a8bd0, #3e6fb0);
+    color: #fff;
+}
+
+#shBody-timeline .sh-case-done-icon {
+    background: linear-gradient(140deg, #4fb287, #3f9d76);
+    color: #fff;
+}
+
+/* Entrance animation — fades/slides each entry in as it scrolls into view
+   within the timeline's own scroll container (see shAnimateTimelineEntries()
+   in student-history.js). .sh-in is added by that observer. */
+#shBody-timeline.active .sh-timeline-item,
+#shBody-timeline.active .sh-case-thread {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+#shBody-timeline.active .sh-timeline-item.sh-in,
+#shBody-timeline.active .sh-case-thread.sh-in {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #shBody-timeline.active .sh-timeline-item,
+    #shBody-timeline.active .sh-case-thread {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
+.sh-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+    font-size: 14px;
+}

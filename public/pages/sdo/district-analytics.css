@@ -1,0 +1,155 @@
+/* District Guidance Analytics — built on the system's existing light theme
+   (.page-hero/.card/.card-stats/.pill/.btn from css/style.css). Only the
+   pieces with no existing equivalent live here: the level-tab toggle, the
+   chart canvas frames, and the legend dots. */
+
+.da-filterbar {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.da-tabs {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.da-tab {
+    padding: 6px 14px;
+}
+
+.da-filterbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.da-updated {
+    font-size: 12.5px;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+#daRefreshBtn.is-spinning i {
+    animation: da-spin 0.8s linear infinite;
+}
+
+@keyframes da-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Stat tiles reuse .card/.card-stats — just tighten the padding the
+   generic .card gives a KPI number and add the label/sub-line rows. */
+.da-stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.da-stat-card {
+    padding: 0;
+}
+
+.da-stat-card .card-content {
+    padding: 22px 24px;
+}
+
+.da-stat-label {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-light);
+}
+
+.da-stat-card .card-stats {
+    margin: 8px 0 6px;
+    font-size: 30px;
+}
+
+.da-stat-sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-light);
+}
+
+.da-row-2 {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+.da-card-block {
+    margin-bottom: 28px;
+}
+
+.da-card-eyebrow {
+    font-size: 11px;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.da-chart-wrap {
+    position: relative;
+    height: 230px;
+}
+
+.da-chart-wrap-tall { height: 320px; }
+
+.da-legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.da-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--text-light);
+}
+
+.da-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.da-dot-good { background: #1b7f5a; }
+.da-dot-warning { background: #a15c00; }
+.da-dot-critical { background: #b3261e; }
+.da-dot-blue { background: #1d5aa8; }
+.da-dot-aqua { background: #1baf7a; }
+
+.da-empty {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--text-light);
+    text-align: center;
+}
+
+.da-footnote {
+    margin: 4px 4px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-light);
+}
+
+@media (max-width: 980px) {
+    .da-row-2 { grid-template-columns: 1fr; }
+    .da-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+    .da-stats-grid { grid-template-columns: 1fr; }
+    .da-filterbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+}

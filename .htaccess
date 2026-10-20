@@ -1,0 +1,8 @@
+# Lets the app work when Apache's document root is this project folder
+# (e.g. Laragon's auto virtual host) instead of public/. Every request is
+# served from public/, so nothing outside it (.env, app/, vendor/...) is
+# reachable from the browser.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
