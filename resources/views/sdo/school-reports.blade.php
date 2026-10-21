@@ -17,6 +17,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="{{ asset('pages/sdo/sdo-report-assets.js') }}?v={{ filemtime(public_path('pages/sdo/sdo-report-assets.js')) }}"></script>
     <script src="{{ asset('pages/sdo/sdo-report-letterhead.js') }}?v={{ filemtime(public_path('pages/sdo/sdo-report-letterhead.js')) }}"></script>
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">
@@ -36,7 +37,7 @@
             <div class="page-content">
                 <!-- Filter Tools -->
                 <div class="card mb-3">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: end;">
+                    <div class="filter-bar" style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 15px; align-items: end;">
                         <div>
                             <label class="d-block mb-1 fw-500">Select District</label>
                             <select id="districtSelect" class="form-control" onchange="loadSummaryReports()">

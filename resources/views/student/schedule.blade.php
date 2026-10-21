@@ -9,6 +9,7 @@
     <title>Schedule - Guidance Management System</title>
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">
@@ -22,10 +23,10 @@
                     <h2 class="page-hero-title">My Schedule</h2>
                     <p class="page-hero-text">View your scheduled appointments with your counselor and request new sessions.</p>
                 </div>
-                <div style="min-width:180px; display:flex; align-items:center; justify-content:flex-end; gap:12px;">
+                <div class="page-hero-user" style="min-width:180px; display:flex; align-items:center; justify-content:flex-end; gap:12px;">
                     <div class="user-info" style="display:flex; align-items:center; gap:10px;">
                         <div class="user-avatar" id="userAvatar" style="background:#2563eb; color:white; width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700;">ST</div>
-                        <div style="text-align:right;">
+                        <div class="page-hero-user-text" style="text-align:right;">
                             <div id="userName" style="font-weight:700;">Student</div>
                             <small id="userRole" style="color: #64748b;">Student</small>
                         </div>
@@ -71,7 +72,7 @@
                         <span class="schedule-legend-item cat-online"><i class="bi bi-laptop"></i> Online Appointment</span>
                         <span class="schedule-legend-item cat-counseling"><i class="bi bi-person-check-fill"></i> Counseling Appointment</span>
                     </div>
-                    <div style="padding: 20px; background: #f8fafc; display: flex; gap: 20px; min-height: 600px;">
+                    <div class="schedule-calendar-body" style="padding: 20px; background: #f8fafc; display: flex; gap: 20px; min-height: 600px;">
                         <!-- Appointment Request Form Panel (Left) -->
                         <div id="appointmentFormPanel" style="flex: 0 0 35%; display: none; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; background: white; overflow-y: auto;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">

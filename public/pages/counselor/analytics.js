@@ -97,7 +97,14 @@ function getReferralApiRole() {
     return REFERRAL_API_ROLE[user && user.role] || 'counselor';
 }
 
-function mkChart(canvas, config) { const c = new Chart(canvas.getContext('2d'), config); charts.push(c); return c; }
+function mkChart(canvas, config) {
+    // Phones: a right-hand legend leaves a doughnut ~100px wide, so put it underneath.
+    const legend = config.options && config.options.plugins && config.options.plugins.legend;
+    if (legend && legend.position === 'right' && window.innerWidth < 768) {
+        config = { ...config, options: { ...config.options, plugins: { ...config.options.plugins, legend: { ...legend, position: 'bottom' } } } };
+    }
+    const c = new Chart(canvas.getContext('2d'), config); charts.push(c); return c;
+}
 const legendRight = { plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } } } };
 const noLegend = { plugins: { legend: { display: false } } };
 
@@ -122,7 +129,7 @@ const statCards = cards => `<div class="dashboard-grid" style="margin-bottom:24p
     <div class="stat-card"><div class="stat-icon${c.color ? ' stat-icon-' + c.color : ''}"><i class="bi ${c.icon}"></i></div><div><h3>${c.num}</h3><p>${esc(c.lbl)}</p></div></div>`).join('')}</div>`;
 const chartTile = (id, title, tall) => `<div class="table-container" style="padding:20px;">
     <h4 class="text-primary" style="margin-top:0;">${esc(title)}</h4>
-    <div style="position:relative; height:${tall ? 320 : 260}px;"><canvas id="${id}"></canvas></div></div>`;
+    <div class="chart-box${tall ? ' chart-box-tall' : ''}" style="position:relative; height:${tall ? 320 : 260}px;"><canvas id="${id}"></canvas></div></div>`;
 // Same card/title framing as chartTile, but for when there's no data to
 // plot yet — an empty Chart.js canvas draws nothing at all (no axes, no
 // "no data" message), which just looks broken rather than "zero".
@@ -420,7 +427,7 @@ function renderAppointments(key) {
         { num: externalStudentIds.size, lbl: 'External', icon: 'bi-send-check', color: 'red' },
     ])));
 
-    frag.append(el(`<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+    frag.append(el(`<div class="an-pair" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
         ${chartTile('chStatus', 'Status Breakdown')}${chartTile('chReason', 'By Reason')}</div>`));
     frag.append(el(`<div style="margin-bottom:28px;">${chartTile('chTrend', 'Daily Trend')}</div>`));
 
@@ -699,7 +706,7 @@ function renderChild() {
     ])));
 
     const hasCases = cases.length > 0;
-    frag.append(el(`<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">${hasCases
+    frag.append(el(`<div class="an-pair" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">${hasCases
         ? `${chartTile('chCaseStatus', 'Case Status')}${chartTile('chCaseCategory', 'Cases by Category')}`
         : `${chartTileEmpty('Case Status', 'No counseling case data yet.', false, 'bi-pie-chart')}${chartTileEmpty('Cases by Category', 'No counseling case data yet.', false, 'bi-bar-chart')}`
     }</div>`));
@@ -718,7 +725,7 @@ function renderChild() {
     const refRows = studentReferrals.map(r => `<tr><td>${esc(r.referral_code || r.id)}</td><td>${esc(r.date_submitted)}</td><td>${esc(r.referral_reason)}</td><td>${badge(r.status)}</td></tr>`).join('');
     const referralHistoryHtml = `<h3 class="text-primary">Referral History</h3><div class="table-container"><table><thead><tr><th>Referral ID</th><th>Submitted</th><th>Reason</th><th>Status</th></tr></thead><tbody>${refRows || '<tr><td colspan="4" class="text-center text-muted" style="padding:30px;">No referrals on record.</td></tr>'}</tbody></table></div>`;
 
-    frag.append(el(`<div class="mb-4" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
+    frag.append(el(`<div class="mb-4 an-pair" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
         <div>${caseHistoryHtml}</div>
         <div style="border-left:1px solid var(--border-color); padding-left:24px;">${referralHistoryHtml}</div>
     </div>`));

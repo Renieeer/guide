@@ -33,6 +33,7 @@
             border-collapse: collapse !important;
         }
     </style>
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">
@@ -80,7 +81,7 @@
                         <span class="schedule-legend-item cat-online"><i class="bi bi-laptop"></i> Online Appointment</span>
                         <span class="schedule-legend-item cat-counseling"><i class="bi bi-person-check-fill"></i> Counseling Appointment</span>
                     </div>
-                    <div style="padding: 12px; background: #f8fafc; min-height: 600px; display: flex;">
+                    <div class="schedule-calendar-body" style="padding: 12px; background: #f8fafc; min-height: 600px; display: flex;">
                         <div style="flex:1; overflow-y:auto;">
                             <div id="scheduleCalendar"></div>
                         </div>

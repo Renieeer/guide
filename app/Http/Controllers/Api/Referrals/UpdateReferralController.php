@@ -38,9 +38,16 @@ class UpdateReferralController extends Controller
             // untouched rather than blanking it out on every unrelated update.
             $consentStudent = trim((string)($payload['consent_student'] ?? ''));
             $consentParent = trim((string)($payload['consent_parent'] ?? ''));
+            // Same set-once pattern: Stage 2's assessment decides the urgency
+            // (confirmAssessmentCompleted() in referral-status.js / referrals.js).
+            $urgency = strtolower(trim((string)($payload['urgency'] ?? '')));
 
             if ($referralId === '' || $stage <= 0 || $status === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
+            }
+
+            if ($urgency !== '' && !in_array($urgency, ['low', 'medium', 'high'], true)) {
+                $this->send_json(400, ['success' => false, 'message' => 'Urgency must be low, medium, or high']);
             }
 
             $referralCode = $referralId;
@@ -72,6 +79,7 @@ class UpdateReferralController extends Controller
             stage_note = NULLIF(?, ''),
             consent_student = COALESCE(NULLIF(?, ''), consent_student),
             consent_parent = COALESCE(NULLIF(?, ''), consent_parent),
+            urgency = COALESCE(NULLIF(?, ''), urgency),
             updated_at = NOW()
         WHERE ReferralID = ? OR referral_code = ?
     ");
@@ -79,7 +87,7 @@ class UpdateReferralController extends Controller
                 $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
             }
 
-            $stmt->bind_param('issssss', $stage, $status, $stageNote, $consentStudent, $consentParent, $referralId, $referralCode);
+            $stmt->bind_param('isssssss', $stage, $status, $stageNote, $consentStudent, $consentParent, $urgency, $referralId, $referralCode);
 
             if (!$stmt->execute()) {
                 $this->send_json(500, ['success' => false, 'message' => 'Update failed: ' . $stmt->error]);

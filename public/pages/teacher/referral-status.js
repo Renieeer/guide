@@ -55,7 +55,7 @@ function loadReferralDetail(referral) {
     document.getElementById('refStudentName').innerHTML = `${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}`;
     document.getElementById('refGrade').textContent = referral.grade || 'N/A';
     document.getElementById('refDateSubmitted').textContent = formatDate(referral.date_submitted);
-    document.getElementById('refUrgency').textContent = referral.urgency || 'normal';
+    document.getElementById('refUrgency').innerHTML = urgencyBadge(referral.urgency);
     document.getElementById('refStatus').innerHTML = createBadge(referral.status);
     document.getElementById('refReason').textContent = referral.referral_reason;
     document.getElementById('refDescription').textContent = referral.description || 'No description provided';

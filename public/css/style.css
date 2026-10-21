@@ -4696,6 +4696,34 @@ tr:hover {
     color: var(--danger);
 }
 
+/* Referral urgency (urgencyBadge() in js/utils.js) */
+.badge-urgency {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.badge-urgency-low {
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+.badge-urgency-medium {
+    background: var(--warn-bg);
+    color: var(--warn);
+}
+
+.badge-urgency-high {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.badge-urgency-normal {
+    background: #eceff3;
+    color: #5a6b80;
+}
+
 .badge-empty {
     background: var(--light-gray);
     color: var(--text-light);
@@ -10272,6 +10300,11 @@ tr:hover {
     border-radius: 50%;
     background: currentColor;
     flex-shrink: 0;
+}
+
+/* Urgency badges carry their own level icon, so no status dot as well */
+.badge-urgency::before {
+    display: none;
 }
 
 /* Tabs — canvas uses a bordered segmented control, not underlined tabs. */

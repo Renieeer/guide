@@ -1,0 +1,781 @@
+/* ==========================================================================
+   responsive.css — shared responsive rules for every page
+   --------------------------------------------------------------------------
+   Linked last on every page (just before </head>): after style.css, any
+   page stylesheet (student-information.css, student-history.css, ...) and
+   the page's own <style> block, so these rules win at equal specificity.
+
+   style.css is written desktop-first, so this file adapts it down through
+   the breakpoints 1280 / 1024 / 768 / 480px instead of re-writing it
+   mobile-first. Fluid sizes use clamp() in rem, with each maximum equal to
+   the existing desktop size so nothing jumps where a breakpoint ends.
+
+   Every rule is inside @media screen, so print styles (case report cards,
+   letterheads) are untouched.
+   ========================================================================== */
+
+/* ---------- All screens ---------- */
+@media screen {
+    body {
+        font-size: clamp(0.875rem, 0.6rem + 1vw, 1rem);
+    }
+
+    img,
+    video {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* style.css hid horizontal overflow on <html> (landing page section),
+       which hides layout bugs instead of fixing them. */
+    html {
+        overflow-x: visible;
+    }
+
+    /* Auth pages' bottom-right glow sat at right/bottom:-100px, so without
+       the <html> overflow mask the page scrolled 100px sideways. Same
+       gradient, same centre (150px in from each edge), drawn in a box that
+       stops at the edge — the part beyond it was never visible anyway. */
+    .auth-page::after {
+        right: 0;
+        bottom: 0;
+        width: 400px;
+        height: 400px;
+        border-radius: 0;
+        background: radial-gradient(circle 353.55px at 250px 250px, rgba(26, 76, 136, 0.15) 0%, transparent 70%);
+    }
+
+    /* Tables placed straight in a section, with no .table-container,
+       scroll inside it (other-school dashboard clipped one at 1024px). */
+    .content-section,
+    .documents-section {
+        overflow-x: auto;
+    }
+}
+
+/* ---------- Laptops / tablets beside the sidebar: 768–1279px ---------- */
+@media screen and (min-width: 768px) and (max-width: 1279.98px) {
+    /* List filter rows (class="filter-bar") set their grid columns inline;
+       other-school referrals' six controls clipped their buttons here.
+       Wrap at natural size, search box on its own line. */
+    .filter-bar {
+        display: flex !important;
+        flex-wrap: wrap;
+    }
+
+    .filter-bar > div:has(input[type="text"]) {
+        flex: 1 1 100%;
+    }
+}
+
+/* ---------- Below 1024px: the sidebar becomes a drawer ---------- */
+@media screen and (max-width: 1023.98px) {
+    /* Drawer + hamburger (style.css only did this below 768px). */
+    .sidebar-toggle {
+        display: flex;
+        top: 12px;
+        left: clamp(0.5rem, 0.2rem + 1.5vw, 0.875rem);
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .sidebar {
+        position: fixed;
+        z-index: 901;
+        width: 250px;
+        max-width: 80%;
+        height: 100vh;
+        height: 100dvh;
+        padding: 0;
+        transform: translateX(-100%);
+        /* Closed: no shadow strip down the left edge, and its links are
+           not keyboard-focusable while off-screen. */
+        box-shadow: none;
+        visibility: hidden;
+        transition: transform 0.3s ease, visibility 0s linear 0.3s;
+    }
+
+    body.sidebar-open .sidebar {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+        visibility: visible;
+        transition: transform 0.3s ease;
+    }
+
+    body.sidebar-open {
+        overflow: hidden;
+    }
+
+    .main-wrapper {
+        flex-direction: column;
+    }
+
+    .sidebar-menu {
+        display: block;
+        margin: 0;
+    }
+
+    /* Solid bar behind the hamburger, so content scrolls under it instead
+       of the button floating over cards. Below overlay (900), drawer (901)
+       and toggle (902). */
+    .main-wrapper::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 0;
+        z-index: 899;
+        height: 68px;
+        background: rgba(238, 243, 249, 0.94);
+        border-bottom: 1px solid rgba(15, 42, 79, 0.08);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+    }
+
+    /* Gutters: .main-content (24px) + .page-content (36px, or the schedule
+       pages' inline 30px 20px !important) + .card (32px) stacked up to
+       ~90px per side on phones. One fluid gutter instead. */
+    .main-content {
+        margin-left: 0;
+        padding: 80px clamp(0.5rem, 0.2rem + 1.5vw, 1.5rem) 1.5rem;
+        /* Long unbroken user text (IDs, URLs, "sdfsdfsdf...") broke out of
+           its box. break-word, not anywhere: it leaves min-content sizing
+           alone, so tables still scroll instead of squeezing columns. */
+        overflow-wrap: break-word;
+    }
+
+    /* overflow-y:auto also made .page-content a sideways scroller, so one
+       wide child dragged the whole page content left/right. */
+    .page-content {
+        padding: 0 !important;
+        overflow: visible;
+    }
+
+    /* Page heroes: title above its actions, not squeezed into one row.
+       (Student schedule sets align-items inline, hence !important.) */
+    .page-hero,
+    .account-hero {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: clamp(0.75rem, 0.5rem + 1vw, 1.25rem);
+        margin-bottom: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+        padding: clamp(1rem, 0.7rem + 1.5vw, 2rem) clamp(0.875rem, 0.55rem + 1.6vw, 2rem);
+    }
+
+    .page-hero-actions {
+        flex-wrap: wrap;
+    }
+
+    .page-hero-eyebrow,
+    .account-hero-eyebrow {
+        margin-bottom: 0.375rem;
+        font-size: clamp(0.625rem, 0.58rem + 0.2vw, 0.6875rem);
+    }
+
+    .page-hero-title,
+    .account-hero-title {
+        font-size: clamp(1.1875rem, 0.95rem + 1.2vw, 1.75rem);
+    }
+
+    .page-hero-text,
+    .account-hero-text {
+        margin-top: 0.375rem;
+        font-size: clamp(0.8125rem, 0.74rem + 0.35vw, 0.9375rem);
+    }
+
+    /* Student schedule's name/role badge: left-aligned under the title. */
+    .page-hero-user {
+        justify-content: flex-start !important;
+        min-width: 0 !important;
+    }
+
+    .page-hero-user-text {
+        text-align: left !important;
+    }
+
+    /* Cards and section boxes */
+    .card,
+    .recent-cases-card {
+        padding: clamp(0.875rem, 0.55rem + 1.6vw, 1.75rem);
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+    }
+
+    .card-title {
+        font-size: clamp(0.9375rem, 0.8rem + 0.6vw, 1.1875rem);
+    }
+
+    .card-stats {
+        font-size: clamp(1.5rem, 1.1rem + 1.9vw, 2.25rem);
+    }
+
+    .card-icon {
+        font-size: clamp(1.25rem, 1rem + 1.2vw, 2rem);
+    }
+
+    .card h2:not(.card-title),
+    .table-container h2,
+    .content-section h2,
+    .page-content h2.mb-4,
+    .page-content > h2 {
+        font-size: clamp(1rem, 0.85rem + 0.7vw, 1.375rem);
+    }
+
+    .card h3:not(.card-title) {
+        font-size: clamp(0.9375rem, 0.85rem + 0.45vw, 1.1875rem);
+    }
+
+    .card-content p,
+    .card > p,
+    .card-header p,
+    .empty-state p,
+    p.text-muted {
+        font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 0.875rem);
+    }
+
+    .stat-card {
+        gap: 0.75rem;
+        padding: clamp(0.875rem, 0.6rem + 1.2vw, 1.5rem) clamp(1rem, 0.7rem + 1.4vw, 1.75rem);
+    }
+
+    .stat-card h3 {
+        font-size: clamp(1.375rem, 1rem + 1.6vw, 1.75rem);
+    }
+
+    .dashboard-grid {
+        gap: clamp(0.875rem, 0.6rem + 1.3vw, 1.75rem);
+        margin-bottom: clamp(1.25rem, 0.9rem + 1.5vw, 2.25rem);
+    }
+
+    .profile-name {
+        font-size: clamp(1.0625rem, 0.95rem + 0.6vw, 1.375rem);
+    }
+
+    .rating-summary-score {
+        font-size: clamp(1.5rem, 1.1rem + 2.2vw, 2.5rem);
+    }
+
+    .form-title {
+        font-size: clamp(0.9375rem, 0.8rem + 0.7vw, 1.25rem);
+    }
+
+    /* Tables: scroll sideways inside their own container; one-line headers
+       stop columns collapsing into three-line stacks. */
+    .table-container {
+        padding: clamp(0.75rem, 0.5rem + 1.25vw, 1.75rem);
+    }
+
+    table th,
+    table td {
+        padding: clamp(0.4rem, 0.3rem + 0.5vw, 0.75rem) clamp(0.35rem, 0.25rem + 0.5vw, 0.75rem);
+        font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    }
+
+    table th {
+        font-size: clamp(0.6875rem, 0.64rem + 0.25vw, 0.8125rem);
+        white-space: nowrap;
+    }
+
+    /* Form text: 16px stops iOS Safari zooming the page on focus. */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
+    .form-group label,
+    .form-field > label,
+    .field-group label,
+    .modal-body label {
+        font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+    }
+
+    /* Modals */
+    .modal-header {
+        padding: clamp(0.875rem, 0.6rem + 1.2vw, 1.5rem) clamp(1rem, 0.6rem + 1.6vw, 2rem);
+    }
+
+    .modal-header h2 {
+        font-size: clamp(1rem, 0.85rem + 0.8vw, 1.5rem);
+    }
+
+    .modal-body {
+        padding: clamp(1rem, 0.75rem + 1vw, 1.5rem) clamp(0.875rem, 0.5rem + 1.8vw, 2rem);
+    }
+
+    .modal-footer {
+        flex-wrap: wrap;
+        padding: clamp(0.75rem, 0.6rem + 0.8vw, 1.25rem) clamp(0.875rem, 0.5rem + 1.8vw, 2rem);
+    }
+
+    /* Tabs */
+    .tab-button {
+        padding: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem) clamp(0.625rem, 0.45rem + 0.8vw, 1.25rem);
+        font-size: clamp(0.75rem, 0.71rem + 0.2vw, 0.875rem);
+    }
+
+    /* Calendar */
+    .schedule-calendar-title h2 {
+        font-size: clamp(1rem, 0.85rem + 0.8vw, 1.375rem);
+    }
+
+    .schedule-calendar-month {
+        font-size: clamp(1rem, 0.85rem + 0.7vw, 1.25rem);
+    }
+
+    /* Referral form's collapsed-people bar is sticky (top:12px); with the
+       page scrolling as a whole here it would stick under the top bar. */
+    .referral-people-chips-bar {
+        top: 76px;
+    }
+}
+
+/* ---------- Phones: below 768px ---------- */
+@media screen and (max-width: 767.98px) {
+    body.auth-page {
+        overflow-x: visible;
+    }
+
+    /* Modals: (nearly) full width, internal scroll */
+    .modal-content {
+        width: calc(100% - 1rem);
+        max-height: calc(100vh - 1rem);
+        max-height: calc(100dvh - 1rem);
+    }
+
+    /* Forms: fields full width, at least a 44px tap target */
+    .form-group input:not([type="checkbox"]):not([type="radio"]),
+    .form-group select,
+    .form-group textarea,
+    .form-field input:not([type="checkbox"]):not([type="radio"]),
+    .form-field select,
+    .form-field textarea,
+    .modal-body input:not([type="checkbox"]):not([type="radio"]),
+    .modal-body select,
+    .modal-body textarea {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]):not([type="hidden"]),
+    select {
+        min-height: 2.75rem;
+    }
+
+    /* Inline-style .form-row grids (2-3 columns, mostly in modals) */
+    .form-row[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Buttons: compact, only as wide as their label, on one line. Several
+       were stretched full-width (inline width:100%, .btn-block,
+       .referral-form .btn), padded up by more specific rules
+       (.profile-card .btn-success, page <style> blocks), or wrapped onto
+       2-3 lines in narrow table cells — !important beats all of those. */
+    .btn,
+    .btn-nav,
+    .btn-add,
+    .btn-edit,
+    .btn-clear-filters,
+    .search-btn,
+    .school-filter-btn,
+    .period-btn,
+    .btn-auth-primary,
+    .btn-auth-secondary,
+    .btn-white,
+    .btn-ghost,
+    .btn-dark,
+    .btn-outline-dark {
+        width: auto !important;
+        max-width: 100%;
+        padding: 0.45rem 0.75rem !important;
+        font-size: clamp(0.75rem, 0.71rem + 0.2vw, 0.8125rem) !important;
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+
+    .btn-sm,
+    .btn-edit {
+        padding: 0.3rem 0.55rem !important;
+        font-size: 0.6875rem !important;
+    }
+
+    /* ...but each still gets a 44px-tall tap area: an invisible ::after
+       taller than the compact button (no .btn uses ::after elsewhere, and
+       every .btn is static/relative, so this is safe). */
+    .btn,
+    .btn-nav,
+    .btn-edit {
+        position: relative;
+    }
+
+    .btn::after,
+    .btn-nav::after,
+    .btn-edit::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 0;
+        left: 0;
+        height: max(100%, 2.75rem);
+        transform: translateY(-50%);
+    }
+
+    /* Column flexboxes stretch children whatever their width; pin these
+       buttons to their own size. */
+    .cta-btns {
+        align-items: center;
+    }
+
+    .page-hero > .btn,
+    .account-hero > .btn,
+    .form-actions > .btn,
+    .search-section > .search-btn,
+    .btn-clear-filters {
+        align-self: flex-start;
+    }
+
+    .action-buttons {
+        align-items: center;
+    }
+
+    /* List filter rows: two per row; search box / button group full row */
+    .filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.75rem !important;
+    }
+
+    .filter-bar select,
+    .filter-bar input {
+        width: 100%;
+    }
+
+    .filter-bar > div:has(input[type="text"]),
+    .filter-bar > div[style*="flex"] {
+        grid-column: 1 / -1;
+    }
+
+    .filter-bar > div[style*="flex"] {
+        flex-wrap: wrap;
+    }
+
+    .filter-bar > .btn {
+        justify-self: start;
+    }
+
+    /* Toolbars and pickers whose fixed min-widths don't fit a phone */
+    .table-toolbar {
+        padding: 0.875rem 1rem;
+    }
+
+    .table-toolbar label {
+        flex-wrap: wrap;
+        white-space: normal;
+    }
+
+    .table-toolbar input[type="text"] {
+        min-width: 0;
+        width: 100%;
+    }
+
+    /* A <select> is as wide as its longest option unless given a width
+       (396px for the counseling drafts' section filter). */
+    .recent-drafts-toolbar select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .search-container input,
+    .search-container select {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .sh-picker .sh-picker-field {
+        flex-basis: 100%;
+        min-width: 0;
+    }
+
+    .sh-slist {
+        grid-template-columns: 1fr;
+    }
+
+    /* Student history record view (student-history.css): plain 1fr columns
+       grew to their widest content (646px on a 375px phone). */
+    .sh-filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sh-filter-field,
+    .sh-folder-content {
+        min-width: 0;
+    }
+
+    .sh-folder-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .referral-person-header {
+        flex-wrap: wrap;
+    }
+
+    /* Collapsed person chips' remove "x" overhangs its chip by 10px */
+    .referral-people-chips-bar {
+        padding-right: 10px;
+    }
+
+    .person-role {
+        max-width: 100%;
+    }
+
+    /* Analytics */
+    .tabs {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        flex: 1 1 auto;
+    }
+
+    /* Chart pairs (inline 1fr 1fr grids built in analytics.js) */
+    .an-pair {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    /* Chart boxes: inline 260/320px (chartTile) and 230/320px (SDO) */
+    .chart-box,
+    .da-chart-wrap {
+        height: clamp(200px, 55vw, 260px) !important;
+    }
+
+    .chart-box-tall,
+    .da-chart-wrap-tall {
+        height: clamp(240px, 70vw, 320px) !important;
+    }
+
+    /* SDO school folders: minmax(300px) can't fit a 320px phone */
+    .school-folder-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    /* Calendar: 7 columns of ~44px can't hold 36px date bubbles plus 8px
+       padding. Compact cells; event chips show just their icon. */
+    .schedule-calendar-header {
+        padding: 1rem;
+    }
+
+    .schedule-calendar-title {
+        min-width: 0;
+    }
+
+    .schedule-calendar-grid {
+        gap: clamp(3px, 1vw, 6px);
+        padding: clamp(4px, 1.2vw, 8px);
+    }
+
+    .schedule-calendar-weekday {
+        padding: 4px 0 6px;
+        font-size: clamp(0.5625rem, 0.5rem + 0.3vw, 0.6875rem);
+        letter-spacing: 0;
+    }
+
+    .schedule-calendar-day {
+        min-height: clamp(52px, 14vw, 72px);
+        padding: clamp(3px, 1vw, 6px);
+        border-radius: 8px;
+    }
+
+    .schedule-day-number {
+        width: clamp(22px, 6vw, 28px);
+        height: clamp(22px, 6vw, 28px);
+        margin-bottom: 4px;
+        font-size: clamp(0.625rem, 0.58rem + 0.25vw, 0.75rem);
+    }
+
+    .schedule-event-block {
+        justify-content: center;
+        padding: 3px;
+    }
+
+    .schedule-event-block .chip-label {
+        display: none;
+    }
+
+    .schedule-calendar-icon {
+        width: 2.375rem;
+        height: 2.375rem;
+        font-size: 1.0625rem;
+    }
+
+    /* Calendar wrapper: inline 600px min-height (mostly blank below the
+       compact grid); student page put its request panel beside the
+       calendar at 35% width. */
+    .schedule-calendar-body {
+        flex-direction: column;
+        gap: 0.75rem !important;
+        min-height: 0 !important;
+        padding: 6px !important;
+    }
+
+    #appointmentFormPanel {
+        flex: none !important;
+    }
+
+    /* Landing page: the existing clamp()s bottom out at 44/32/28px, too
+       big for a phone; these meet them again at 768px. */
+    .hero-title {
+        font-size: clamp(2rem, 0.6rem + 7vw, 3.8rem);
+    }
+
+    .s-title,
+    .about-title {
+        font-size: clamp(1.375rem, 0.9rem + 2.6vw, 2rem);
+    }
+
+    .cta-title {
+        font-size: clamp(1.25rem, 0.8rem + 2.4vw, 1.75rem);
+    }
+
+    .stat-num {
+        font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.375rem);
+    }
+
+    .hero-subtitle {
+        font-size: clamp(0.9375rem, 0.85rem + 0.4vw, 1.0625rem);
+    }
+
+    /* The absolutely-positioned "Scroll" hint covered the Create Account
+       button on short phone screens. */
+    .scroll-hint {
+        display: none;
+    }
+
+    /* Auth pages */
+    .auth-box h1 {
+        font-size: clamp(1.375rem, 1rem + 1.9vw, 2rem);
+    }
+
+    .auth-brand h2 {
+        font-size: clamp(1.125rem, 0.95rem + 0.9vw, 1.5rem);
+    }
+
+    .auth-subtitle {
+        font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem);
+    }
+
+    /* Student information form (student-information.css): a plain 1fr
+       column can't shrink below its widest field, and the region <select>
+       made the whole form 450px wide. */
+    .form-body {
+        padding: clamp(1rem, 0.6rem + 1.8vw, 1.5rem) clamp(0.75rem, 0.5rem + 1.2vw, 1rem);
+    }
+
+    .field-grid,
+    .identity-row,
+    .address-row,
+    .info-row,
+    .parents-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .field-group {
+        min-width: 0;
+    }
+
+    .field-group input,
+    .field-group select,
+    .field-group textarea {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .section-title {
+        font-size: clamp(0.875rem, 0.8rem + 0.4vw, 1rem);
+    }
+}
+
+/* ---------- Small phones: below 480px ---------- */
+@media screen and (max-width: 479.98px) {
+    /* Student information: six step labels can't share ~290px
+       ("EducationOrganizationsParents" ran together) — numbered bubbles
+       only; the active step's name is the section title below. */
+    .step-track {
+        margin-bottom: 1.5rem;
+        padding: 0;
+    }
+
+    .step-track::before {
+        top: 16px;
+    }
+
+    .step-bubble {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 0;
+        border-width: 2px;
+        font-size: 0.8125rem;
+    }
+
+    .step-label {
+        display: none;
+    }
+
+    .address-panel {
+        padding: 0.875rem 0.75rem;
+    }
+
+    .section {
+        margin-bottom: 1.375rem;
+    }
+
+    .section-header {
+        margin-bottom: 0.875rem;
+    }
+
+    .section-icon {
+        width: 30px;
+        height: 30px;
+        margin-right: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .field-grid {
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .sh-filter-bar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Student history case headers: title + status badge + chevron in one
+       row ran ~50px past a 320px screen. */
+    .sh-case-thread-header {
+        flex-wrap: wrap;
+    }
+
+    .sh-case-thread-header > :first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    /* Document tabs share the row instead of the second one sitting mostly
+       off-screen in the scroll strip. */
+    .document-tab {
+        flex: 1 1 0;
+        padding: 0.625rem 0.375rem;
+        white-space: normal;
+        text-align: center;
+    }
+
+    /* District picker: keep the grid of options, shrink the cells */
+    .district-btn {
+        padding: 0.45rem 0.375rem;
+        font-size: 0.6875rem;
+        line-height: 1.25;
+    }
+}

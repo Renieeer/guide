@@ -121,7 +121,7 @@ function loadDetailView(referral) {
     document.getElementById('detStudentName').innerHTML = `${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}`;
     document.getElementById('detStudentGradeSection').textContent = (referral.grade || 'N/A') + ' - ' + (referral.section || 'N/A');
     document.getElementById('detDateSubmitted').textContent = formatDate(referral.date_submitted);
-    document.getElementById('detUrgency').textContent = referral.urgency || 'normal';
+    document.getElementById('detUrgency').innerHTML = urgencyBadge(referral.urgency);
     document.getElementById('detStatus').innerHTML = createBadge(referral.status || getStatusLabel(referral.stage));
     document.getElementById('detStage').textContent = referral.stage + '/7';
     document.getElementById('detStageNote').textContent = referral.stage_note ? ` — ${referral.stage_note}` : '';
@@ -206,6 +206,21 @@ function renderStageSection(referral, viewStage) {
         document.getElementById('assessmentCompletedYesBtn').onclick = confirmAssessmentCompleted;
         document.getElementById('assessmentCompletedNoBtn').onclick = () => {
             showAlert('No problem — come back once the student has completed the assessment.', 'info');
+        };
+        const urgencyEl = document.getElementById('assessmentUrgency');
+        // Shows the urgency recorded when Stage 2 was confirmed ("normal" is just
+        // the default before then), and locks once the referral has moved past
+        // it so reviewing Stage 2 can't change it.
+        urgencyEl.value = ['low', 'medium', 'high'].includes(referral.urgency) ? referral.urgency : '';
+        urgencyEl.disabled = referral.stage > 2;
+        urgencyEl.classList.remove('field-error');
+        const showUrgencyPreview = () => {
+            document.getElementById('assessmentUrgencyPreview').innerHTML = urgencyEl.value ? urgencyBadge(urgencyEl.value) : '';
+        };
+        showUrgencyPreview();
+        urgencyEl.onchange = () => {
+            urgencyEl.classList.remove('field-error');
+            showUrgencyPreview();
         };
         loadAssessmentFiles(referral.id);
     } else {
@@ -1300,10 +1315,20 @@ function submitAssessmentUpload(e) {
 // so this doesn't require one on file — the counselor's own confirmation
 // here is what actually gates the advance.
 function confirmAssessmentCompleted() {
+    // The assessment decides the referral's urgency, so it's required to
+    // move on — saved on the referral alongside the stage change.
+    const urgencyEl = document.getElementById('assessmentUrgency');
+    const urgency = urgencyEl.value;
+    if (!urgency) {
+        urgencyEl.classList.add('field-error');
+        urgencyEl.focus();
+        showAlert('Select the urgency from the assessment before moving to Stage 3.', 'error');
+        return;
+    }
     if (!confirm('Confirm the student has completed the assessment? This will move the referral to Stage 3.')) {
         return;
     }
-    setReferralStage(currentReferral.stage + 1, 'Assessment done');
+    setReferralStage(currentReferral.stage + 1, 'Assessment done', { urgency });
 }
 
 // Same api/referral-screening table as the Stage 2 screening notes
@@ -1680,7 +1705,7 @@ function loadListView() {
             <td>${referral.grade || 'N/A'}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${formatDate(referral.date_submitted)}</td>
-            <td>${referral.urgency || 'normal'}</td>
+            <td>${urgencyBadge(referral.urgency)}</td>
             <td>${referral.stage}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
@@ -1722,7 +1747,7 @@ function applyStageFilter() {
             <td>${referral.grade || 'N/A'}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${formatDate(referral.date_submitted)}</td>
-            <td>${referral.urgency || 'normal'}</td>
+            <td>${urgencyBadge(referral.urgency)}</td>
             <td>${referral.stage}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>

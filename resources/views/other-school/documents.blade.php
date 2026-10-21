@@ -498,6 +498,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">

@@ -95,7 +95,7 @@ function loadReferralDetail(referral) {
     document.getElementById('detailAge').textContent = referral.age || 'N/A';
     document.getElementById('detailGender').textContent = referral.gender || 'N/A';
     document.getElementById('detailDateSubmitted').textContent = formatDate(referral.date_submitted);
-    document.getElementById('detailUrgency').textContent = referral.urgency || 'normal';
+    document.getElementById('detailUrgency').innerHTML = urgencyBadge(referral.urgency);
     document.getElementById('detailStatus').innerHTML = createBadge(referral.status || getStatusLabel(referral.stage));
     document.getElementById('detailStage').textContent = `${referral.stage}/7`;
     document.getElementById('detailStageNote').textContent = referral.stage_note ? ` — ${referral.stage_note}` : '';
@@ -293,7 +293,7 @@ function loadReferralsList() {
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${referral.teacher_name || 'Unknown'}</td>
             <td>${formatDate(referral.date_submitted)}</td>
-            <td>${referral.urgency || 'normal'}</td>
+            <td>${urgencyBadge(referral.urgency)}</td>
             <td>${referral.stage}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
@@ -323,7 +323,7 @@ function applyFilters() {
     }
 
     if (urgencyFilter) {
-        filtered = filtered.filter(r => r.urgency === urgencyFilter);
+        filtered = filtered.filter(r => (r.urgency || 'normal').toLowerCase() === urgencyFilter);
     }
 
     if (stageFilter) {
@@ -346,7 +346,7 @@ function applyFilters() {
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${referral.teacher_name || 'Unknown'}</td>
             <td>${formatDate(referral.date_submitted)}</td>
-            <td>${referral.urgency || 'normal'}</td>
+            <td>${urgencyBadge(referral.urgency)}</td>
             <td>${referral.stage}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>

@@ -227,6 +227,29 @@ function referralRoleBadge(role) {
     return `<span class="badge badge-${normalized}">${label}</span>`;
 }
 
+// A referral's urgency as a colored badge — green / amber / red, each with
+// its own icon so the level never rests on color alone. Stage 2's
+// assessment sets low / medium / high; "normal" is the default before that
+// (muted gray). Older "urgent" / "crisis" values render as high.
+const URGENCY_LEVELS = {
+    low: { label: 'Low', icon: 'bi-shield-check', tone: 'low' },
+    medium: { label: 'Medium', icon: 'bi-exclamation-triangle-fill', tone: 'medium' },
+    high: { label: 'High', icon: 'bi-exclamation-octagon-fill', tone: 'high' },
+    urgent: { label: 'Urgent', icon: 'bi-exclamation-octagon-fill', tone: 'high' },
+    crisis: { label: 'Crisis', icon: 'bi-exclamation-octagon-fill', tone: 'high' }
+};
+
+function urgencyBadge(urgency) {
+    const key = String(urgency || 'normal').toLowerCase();
+    const info = URGENCY_LEVELS[key];
+    if (!info) {
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        const safe = label.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        return `<span class="badge badge-urgency badge-urgency-normal">${safe}</span>`;
+    }
+    return `<span class="badge badge-urgency badge-urgency-${info.tone}" title="${info.label} urgency"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
+}
+
 // Create action buttons
 function createActionButtons(id, canEdit = true, canDelete = true) {
     let html = '';

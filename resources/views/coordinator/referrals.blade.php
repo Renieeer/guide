@@ -9,6 +9,7 @@
     <title>Referrals Management - Guidance Management System</title>
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">
@@ -99,7 +100,7 @@
                 <div id="referralListView">
                     <!-- Filters -->
                     <div class="card" style="margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: auto auto auto auto 1fr; gap: 15px; align-items: end;">
+                        <div class="filter-bar" style="display: grid; grid-template-columns: auto auto auto auto 1fr; gap: 15px; align-items: end;">
                             <div>
                                 <label style="display: block; margin-bottom: 5px; font-weight: 500;">Status</label>
                                 <select id="statusFilter" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
@@ -113,10 +114,10 @@
                                 <label style="display: block; margin-bottom: 5px; font-weight: 500;">Urgency</label>
                                 <select id="urgencyFilter" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                                     <option value="">All</option>
-                                    <option value="Low">Low</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="High">High</option>
-                                    <option value="Crisis">Crisis</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
                                 </select>
                             </div>
                             <div>

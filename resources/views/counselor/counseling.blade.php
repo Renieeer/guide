@@ -13,6 +13,8 @@
          drawer timeline, instead of a second, separate visual language. -->
     <link rel="stylesheet" href="{{ asset('css/student-history.css') }}?v={{ filemtime(public_path('css/student-history.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">

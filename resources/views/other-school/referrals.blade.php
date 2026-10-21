@@ -9,6 +9,7 @@
     <title>Referral Status - Guidance Management System</title>
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
 <body>
     <div class="main-wrapper">
@@ -129,6 +130,19 @@
 
                                 <button type="submit" class="btn btn-secondary">Upload Document</button>
                             </form>
+
+                            <div class="form-group">
+                                <label for="assessmentUrgency">Urgency from the assessment <span style="color: var(--danger-color);">*</span></label>
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <select id="assessmentUrgency" style="max-width: 220px;">
+                                        <option value="">Select urgency</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                    <span id="assessmentUrgencyPreview"></span>
+                                </div>
+                            </div>
 
                             <div class="form-group">
                                 <label>Has the student completed the assessment you gave?</label>
@@ -575,8 +589,9 @@
                                     <label for="newRefUrgency">Urgency</label>
                                     <select id="newRefUrgency">
                                         <option value="normal" selected>Normal</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
                                         <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
                                     </select>
                                 </div>
                             </div>
@@ -595,7 +610,7 @@
 
                     <!-- Filter -->
                     <div class="card" style="margin-bottom: 20px;">
-                        <div style="display: grid; grid-template-columns: 1fr auto auto auto auto auto; gap: 15px; align-items: end;">
+                        <div class="filter-bar" style="display: grid; grid-template-columns: 1fr auto auto auto auto auto; gap: 15px; align-items: end;">
                             <div>
                                 <label style="display: block; margin-bottom: 5px; font-weight: 500;">Search</label>
                                 <input type="text" id="searchBox" placeholder="Search student name or referral ID..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
@@ -616,8 +631,9 @@
                                 <select id="urgencyFilter" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                                     <option value="">All</option>
                                     <option value="normal">Normal</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
                                     <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
                                 </select>
                             </div>
                             <div>

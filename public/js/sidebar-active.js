@@ -63,9 +63,9 @@ function initSidebarToggle() {
     });
 
     // Don't leave the drawer stuck "open" if the window is resized past
-    // the mobile breakpoint while it was open.
+    // the breakpoint where it becomes a drawer (1024px, see responsive.css).
     window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) closeSidebar();
+        if (window.innerWidth >= 1024) closeSidebar();
     });
 }
 
