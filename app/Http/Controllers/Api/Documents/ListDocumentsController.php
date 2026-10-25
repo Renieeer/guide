@@ -108,7 +108,7 @@ class ListDocumentsController extends Controller
             INDEX idx_student (student_id),
             INDEX idx_type (document_type),
             INDEX idx_school (school_attended)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
         if (!$conn->query($sql)) {
             $this->send_json(500, ['success' => false, 'message' => 'Failed to initialize documents table: ' . $conn->error]);

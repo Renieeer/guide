@@ -10,9 +10,15 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * Loopback only: VS Code's port forwarding (dev tunnels) connects from
+     * this machine, sends Host: localhost:<port>, and puts the public
+     * https://*.devtunnels.ms address in X-Forwarded-Host/-Proto. Trusting
+     * it makes asset()/url() build links to that address instead of
+     * http://localhost. Requests from anywhere else can't fake these headers.
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = ['127.0.0.1', '::1'];
 
     /**
      * The headers that should be used to detect proxies.

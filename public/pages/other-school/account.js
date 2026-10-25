@@ -626,7 +626,7 @@ function exportStudentAccountsToExcel() {
 
     const school = getCurrentSchool();
     const schoolSlug = school ? school.replace(/[^a-z0-9]+/gi, '_') : 'Export';
-    const filename = `Student_Accounts_${schoolSlug}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const filename = `Student_Accounts_${schoolSlug}_${localDateString()}.xlsx`;
 
     const sheets = [
         { name: 'Student Accounts', aoa, colWidths: [{ wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 30 }] }

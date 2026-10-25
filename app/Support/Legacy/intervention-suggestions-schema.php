@@ -38,7 +38,7 @@ function ensure_intervention_suggestions_tables(mysqli $conn): void {
             UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (InterventionID),
             UNIQUE KEY uniq_normalized_name (NormalizedName)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
     $conn->query("
@@ -53,7 +53,7 @@ function ensure_intervention_suggestions_tables(mysqli $conn): void {
             CONSTRAINT fk_intervention_reason_map_intervention
                 FOREIGN KEY (InterventionID) REFERENCES intervention_suggestions (InterventionID)
                 ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 }
 

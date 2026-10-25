@@ -280,7 +280,7 @@ function renderStageSection(referral, viewStage) {
         followUpSection.style.display = 'block';
         const followUpDateEl = document.getElementById('followUpDate');
         if (!followUpDateEl.value) {
-            followUpDateEl.value = new Date().toISOString().split('T')[0];
+            followUpDateEl.value = localDateString();
         }
         document.getElementById('followUpInterval').onchange = updateFollowUpCustomDaysVisibility;
         updateFollowUpCustomDaysVisibility();

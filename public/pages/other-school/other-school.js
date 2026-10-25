@@ -110,8 +110,7 @@ function getCurrentWeekRange() {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const toISO = d => d.toISOString().slice(0, 10);
-    return { start: toISO(monday), end: toISO(sunday) };
+    return { start: localDateString(monday), end: localDateString(sunday) };
 }
 
 function loadRecentReferrals(referrals) {

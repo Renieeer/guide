@@ -29,8 +29,8 @@ Route::view('/staff-register', 'auth.staff-register')->name('staff-register');
 |--------------------------------------------------------------------------
 | Each role's pages live under /<role>/<page> and render
 | resources/views/<role>/<page>.blade.php. The legacy.session middleware
-| sends anyone who isn't logged in (or is logged in as another role) back
-| to the home page.
+| shows anyone who isn't logged in (or is logged in as another role) the
+| 403 page instead.
 */
 
 $rolePages = [
@@ -130,3 +130,20 @@ Route::prefix('api')->name('api.')->middleware('legacy.errors')->group(function 
         Route::any('issue-teacher-access-code', School\IssueTeacherAccessCodeController::class)->name('issue-teacher-access-code');
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Error pages
+|--------------------------------------------------------------------------
+| /error?code=403|404 shows that error page with that status; any other
+| code shows the 404. public/error.php sends Apache's ErrorDocument
+| requests here. The fallback runs unknown URLs through the web middleware
+| so the 404 page can read the session (Dashboard vs. Login button).
+*/
+
+Route::get('error', function () {
+    $code = request()->integer('code');
+    abort(in_array($code, [403, 404], true) ? $code : 404);
+})->name('error');
+
+Route::fallback(fn () => abort(404));

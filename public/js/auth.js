@@ -128,7 +128,10 @@ document.getElementById('loginForm')?.addEventListener('submit', async function(
         }
     } catch (error) {
         console.error('Login error:', error);
-        showError('Login failed: ' + error.message);
+        // error.friendly: a server/connection problem already worded for
+        // users by js/loader.js. Anything else is a bug, not something the
+        // user can act on, so don't show its raw text.
+        showError(error.friendly ? error.message : 'Something went wrong while signing in. Please try again.');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;

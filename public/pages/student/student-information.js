@@ -192,7 +192,10 @@
         }
 
         const selectedOption = selectElement.options[selectElement.selectedIndex];
-        return selectedOption ? selectedOption.textContent.trim() : '';
+        // The placeholder ("Select city or municipality") has an empty value:
+        // nothing picked means no name, not the placeholder's own label
+        // saved as the address.
+        return selectedOption && selectedOption.value ? selectedOption.textContent.trim() : '';
     }
 
     function parseAddressData(rawValue) {

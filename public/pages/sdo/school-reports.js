@@ -323,7 +323,7 @@ async function previewReportPdf(district, periodKey) {
         const periodLabel = PERIOD_LABEL[periodKey];
 
         const doc = buildReportPdf(schools, districts, districtTitle, periodLabel);
-        const filename = `school_report_${districtTitle.replace(/\s+/g, '-')}_${periodKey}_${new Date().toISOString().split('T')[0]}.pdf`;
+        const filename = `school_report_${districtTitle.replace(/\s+/g, '-')}_${periodKey}_${localDateString()}.pdf`;
         showPdfPreview(doc, filename);
     } catch (error) {
         console.error('Error exporting report:', error);
@@ -502,7 +502,7 @@ async function previewReportExcel(district, periodKey) {
         const periodLabel = PERIOD_LABEL[periodKey];
 
         const sheets = buildReportExcelSheets(schools, districts, districtTitle, periodLabel);
-        const filename = `school_report_${districtTitle.replace(/\s+/g, '-')}_${periodKey}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const filename = `school_report_${districtTitle.replace(/\s+/g, '-')}_${periodKey}_${localDateString()}.xlsx`;
 
         showExcelPreview(filename, sheets, async () => {
             const workbook = buildReportExcelWorkbook(schools, districts, districtTitle, periodLabel);

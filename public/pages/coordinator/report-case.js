@@ -822,10 +822,18 @@ function loadPdfJsIfNeeded() {
     return reportLetterheadPdfJsPromise;
 }
 
+// Choosing another PDF while the previous one is still rendering would draw
+// both onto the same canvas, which pdf.js refuses ("Cannot use the same
+// canvas during multiple render() operations") — the earlier render is
+// cancelled and only the latest pick updates the editor.
+let reportLetterheadSelection = 0;
+let reportLetterheadRenderTask = null;
+
 async function handleReportLetterheadFileSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    const selection = ++reportLetterheadSelection;
     reportLetterheadOriginalFilename = file.name;
 
     try {
@@ -839,15 +847,23 @@ async function handleReportLetterheadFileSelected(e) {
         // the actual header/footer crops at Save time.
         const viewport = page.getViewport({ scale: 2 });
 
+        if (selection !== reportLetterheadSelection) return;
+        if (reportLetterheadRenderTask) reportLetterheadRenderTask.cancel();
+
         const canvas = document.getElementById('reportLetterheadCanvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        const renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+        reportLetterheadRenderTask = renderTask;
+        await renderTask.promise;
+        if (reportLetterheadRenderTask === renderTask) reportLetterheadRenderTask = null;
+        if (selection !== reportLetterheadSelection) return;
 
         reportLetterheadSourceCanvas = canvas;
         document.getElementById('reportLetterheadEditor').style.display = 'block';
         updateReportLetterheadOverlays();
     } catch (err) {
+        if (selection !== reportLetterheadSelection) return; // cancelled by a newer pick
         console.error('Error rendering PDF letterhead:', err);
         showNotification('Could not read that PDF — try a different file.', 'error');
     }
@@ -1021,7 +1037,7 @@ function buildExportTable() {
 }
 
 function exportFileBaseName() {
-    return `${reportRoleSlug()}-cases-${(currentSchool || 'school').replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}`;
+    return `${reportRoleSlug()}-cases-${(currentSchool || 'school').replace(/\s+/g, '-')}-${localDateString()}`;
 }
 
 /* ---- Export preview modals — same "view before you download" flow as

@@ -12,6 +12,8 @@
 //
 // Enforced by App\Http\Middleware\EnsureActiveSession.
 
+use App\Http\Middleware\EnsureActiveSession;
+
 // Same defensive-migration pattern as every other schema change in this
 // app (see e.g. ensure_users_table_active_column() in account-status.php).
 function ensure_users_table_session_column(mysqli $conn): void
@@ -63,4 +65,52 @@ function session_guard_current_user(): ?array
     }
 
     return $user;
+}
+
+// Stops the request with the 403 page (resources/views/errors/403.blade.php).
+// The page picks its own message: "please log in" for a visitor without an
+// active session, or "no permission" plus their role for a logged-in user.
+function deny_access(): never
+{
+    abort(403);
+}
+
+// Who the 403/404 pages are talking to: null for a visitor without an active
+// session, otherwise their role's label and their dashboard URL. Never
+// throws, since an error page still has to render when the database is down.
+function error_page_viewer(): ?array
+{
+    try {
+        $user = session_guard_current_user();
+    } catch (Throwable) {
+        return null;
+    }
+    if ($user === null) {
+        return null;
+    }
+
+    // Same wording as PROFILE_ROLE_LABELS in public/js/utils.js.
+    $labels = [
+        'student' => 'Student',
+        'teacher' => 'Teacher',
+        'counselor' => 'Counselor',
+        'coordinator' => 'Coordinator',
+        'counselor-and-coordinator' => 'Counselor & Coordinator',
+        'sdo' => 'SDO',
+        'admin' => 'Administrator',
+    ];
+    $role = (string) ($user['role'] ?? '');
+
+    $dashboard = url('/');
+    foreach (EnsureActiveSession::ROLE_GROUPS as $folder => $roles) {
+        if (in_array($role, $roles, true)) {
+            $dashboard = url("$folder/dashboard");
+            break;
+        }
+    }
+
+    return [
+        'role' => $labels[$role] ?? $role,
+        'dashboard' => $dashboard,
+    ];
 }

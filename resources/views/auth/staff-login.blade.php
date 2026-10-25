@@ -106,8 +106,8 @@
         </div>
     </div>
 
-    <script src="{{ asset('js/otp-verify.js') }}"></script>
-    <script src="{{ asset('js/auth.js') }}"></script>
+    <script src="{{ asset('js/otp-verify.js') }}?v={{ filemtime(public_path('js/otp-verify.js')) }}"></script>
+    <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script>
         const navToggle = document.getElementById('navToggle');
         const navLinks = document.getElementById('navLinks');

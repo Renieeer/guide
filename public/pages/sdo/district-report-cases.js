@@ -886,7 +886,7 @@ function generateCategoryOfCasesPdf() {
 
     drawSdoPdfLetterhead(doc);
 
-    const filename = `${districtTitle.replace(/\s+/g, '-')}_${PERIOD_LABELS[currentPeriod].replace(/\s+/g, '-')}_CategoryOfCases_${new Date().toISOString().split('T')[0]}.pdf`;
+    const filename = `${districtTitle.replace(/\s+/g, '-')}_${PERIOD_LABELS[currentPeriod].replace(/\s+/g, '-')}_CategoryOfCases_${localDateString()}.pdf`;
     showPdfPreview(doc, filename);
 }
 
@@ -992,7 +992,7 @@ function generateCategoryOfCasesExcel() {
     const sheets = [
         { name: 'Report Cases', aoa: categoryAoa, colWidths: [{ wch: 34 }, ...gradesList.flatMap(() => [{ wch: 8 }, { wch: 8 }, { wch: 8 }]), { wch: 12 }] }
     ];
-    const filename = `${districtTitle.replace(/\s+/g, '-')}_${periodLabel.replace(/\s+/g, '-')}_CategoryOfCases_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const filename = `${districtTitle.replace(/\s+/g, '-')}_${periodLabel.replace(/\s+/g, '-')}_CategoryOfCases_${localDateString()}.xlsx`;
 
     showExcelPreview(filename, sheets, async () => {
         const workbook = buildCategoryOfCasesWorkbook(body, sectionHeaderRows, subtotalRows, title, periodLabel, gradesList);
@@ -1129,7 +1129,7 @@ async function generateDivisionSummaryPdf(period, start, end, label) {
 
     drawSdoPdfLetterhead(doc);
 
-    const filename = `Division-Wide-Summary_${label.replace(/\s+/g, '-')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const filename = `Division-Wide-Summary_${label.replace(/\s+/g, '-')}_${localDateString()}.pdf`;
     showPdfPreview(doc, filename);
 }
 
@@ -1201,7 +1201,7 @@ async function generateDivisionSummaryExcel(period, start, end, label) {
     const { header, body, sectionHeaderRows } = buildDivisionSummaryTable(rows, divisionCounts, divisionGrades);
 
     const title = 'Division-Wide Summary Case';
-    const filename = `Division-Wide-Summary_${label.replace(/\s+/g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const filename = `Division-Wide-Summary_${label.replace(/\s+/g, '-')}_${localDateString()}.xlsx`;
     const categoryAoa = [
         [title],
         [`Period: ${label}`],
@@ -1271,7 +1271,7 @@ async function generateCasesBySchoolPdf(period, start, end, label) {
     const section = selectedSectionFilter();
     const category = selectedCategoryFilter();
     const titleSuffix = exportCasesByFilterSuffix();
-    const filename = `${districtTitle.replace(/\s+/g, '-')}_${level !== 'all' ? level + '_' : ''}${label.replace(/\s+/g, '-')}_ReportCases_${new Date().toISOString().split('T')[0]}.pdf`;
+    const filename = `${districtTitle.replace(/\s+/g, '-')}_${level !== 'all' ? level + '_' : ''}${label.replace(/\s+/g, '-')}_ReportCases_${localDateString()}.pdf`;
 
     const schools = await fetchSchoolBreakdownData(currentDistrict, period, start, end, level, section, category);
     const { body: schoolBody, totals: schoolTotals } = buildSchoolBreakdownExportRows(schools);
@@ -1379,7 +1379,7 @@ async function generateCasesBySchoolExcel(period, start, end, label) {
     const section = selectedSectionFilter();
     const category = selectedCategoryFilter();
     const titleSuffix = exportCasesByFilterSuffix();
-    const filename = `${districtTitle.replace(/\s+/g, '-')}_${level !== 'all' ? level + '_' : ''}${label.replace(/\s+/g, '-')}_ReportCases_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const filename = `${districtTitle.replace(/\s+/g, '-')}_${level !== 'all' ? level + '_' : ''}${label.replace(/\s+/g, '-')}_ReportCases_${localDateString()}.xlsx`;
 
     const schools = await fetchSchoolBreakdownData(currentDistrict, period, start, end, level, section, category);
     const { body: schoolBody, totals: schoolTotals } = buildSchoolBreakdownExportRows(schools);
@@ -1523,7 +1523,7 @@ async function generateDmmrPdf(start, end, label) {
 
     drawSdoPdfLetterhead(doc);
 
-    const filename = `DMMR_${label.replace(/\s+/g, '-')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const filename = `DMMR_${label.replace(/\s+/g, '-')}_${localDateString()}.pdf`;
     showPdfPreview(doc, filename);
 }
 
@@ -1648,7 +1648,7 @@ async function generateDmmrExcel(start, end, label) {
         []
     ];
     const fullAoa = [...titleRows, excelRow1, excelRow2, ...body];
-    const filename = `DMMR_${label.replace(/\s+/g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const filename = `DMMR_${label.replace(/\s+/g, '-')}_${localDateString()}.xlsx`;
     const sheets = [{ name: `Division Monthly Monitoring Report`, aoa: fullAoa }];
 
     showExcelPreview(filename, sheets, async () => {
@@ -1797,10 +1797,18 @@ function loadPdfJsIfNeeded() {
     return reportLetterheadPdfJsPromise;
 }
 
+// Choosing another PDF while the previous one is still rendering would draw
+// both onto the same canvas, which pdf.js refuses ("Cannot use the same
+// canvas during multiple render() operations") — the earlier render is
+// cancelled and only the latest pick updates the editor.
+let reportLetterheadSelection = 0;
+let reportLetterheadRenderTask = null;
+
 async function handleReportLetterheadFileSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    const selection = ++reportLetterheadSelection;
     reportLetterheadOriginalFilename = file.name;
 
     try {
@@ -1814,15 +1822,23 @@ async function handleReportLetterheadFileSelected(e) {
         // the actual header/footer crops at Save time.
         const viewport = page.getViewport({ scale: 2 });
 
+        if (selection !== reportLetterheadSelection) return;
+        if (reportLetterheadRenderTask) reportLetterheadRenderTask.cancel();
+
         const canvas = document.getElementById('reportLetterheadCanvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        const renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+        reportLetterheadRenderTask = renderTask;
+        await renderTask.promise;
+        if (reportLetterheadRenderTask === renderTask) reportLetterheadRenderTask = null;
+        if (selection !== reportLetterheadSelection) return;
 
         reportLetterheadSourceCanvas = canvas;
         document.getElementById('reportLetterheadEditor').style.display = 'block';
         updateReportLetterheadOverlays();
     } catch (err) {
+        if (selection !== reportLetterheadSelection) return; // cancelled by a newer pick
         console.error('Error rendering PDF letterhead:', err);
         showAlert('error', 'Could not read that PDF — try a different file.');
     }

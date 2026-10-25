@@ -1,3 +1,9 @@
+# Apache's own 403s/404s (e.g. a folder URL like /css/, which -Indexes
+# forbids) get the app's error page instead of Apache's default one, which
+# names the server and its version. See error.php.
+ErrorDocument 403 /error.php?code=403
+ErrorDocument 404 /error.php?code=404
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

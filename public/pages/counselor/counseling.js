@@ -186,7 +186,7 @@ function initCounselingCasePage() {
     if (followUpDate) {
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
-        followUpDate.value = nextWeek.toISOString().split('T')[0];
+        followUpDate.value = localDateString(nextWeek);
     }
 
     loadCaseDrafts();
@@ -1051,7 +1051,7 @@ function resetForm() {
     if (followUpDate) {
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
-        followUpDate.value = nextWeek.toISOString().split('T')[0];
+        followUpDate.value = localDateString(nextWeek);
     }
     renderStudentList();
 }
@@ -1393,7 +1393,7 @@ function openFollowUpModal(caseId) {
                 </div>
                 <div class="fu-form-field">
                     <label class="fu-form-label">DATE</label>
-                    <input type="date" id="fu-date" class="fu-form-input" value="${new Date().toISOString().split('T')[0]}" readonly>
+                    <input type="date" id="fu-date" class="fu-form-input" value="${localDateString()}" readonly>
                 </div>
             </div>
 

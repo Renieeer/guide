@@ -196,7 +196,7 @@ class ReportLetterheadController extends Controller
             updated_by_id INT DEFAULT NULL,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (school_code)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
         if (!$conn->query($sql)) {
             $this->send_json(500, ['success' => false, 'message' => 'Failed to initialize report_letterhead table: ' . $conn->error]);

@@ -11,8 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 //
 // Usage:
 //   ->middleware('legacy.session')                 API: 401 JSON on failure
-//   ->middleware('legacy.session:page,student')    page: redirect to "/" on
-//                                                  failure or wrong role
+//   ->middleware('legacy.session:page,student')    page: 403 page on failure
+//                                                  or wrong role (deny_access())
 class EnsureActiveSession
 {
     // Page folder (URL prefix) -> the account role(s) allowed on it.
@@ -32,7 +32,7 @@ class EnsureActiveSession
         if ($mode === 'page') {
             $allowed = $group !== null ? (self::ROLE_GROUPS[$group] ?? []) : null;
             if ($user === null || ($allowed !== null && !in_array($user['role'] ?? null, $allowed, true))) {
-                return redirect()->route('home');
+                deny_access();
             }
 
             return $next($request);

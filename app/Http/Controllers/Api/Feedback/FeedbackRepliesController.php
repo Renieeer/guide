@@ -184,7 +184,7 @@ class FeedbackRepliesController extends Controller
             INDEX idx_student (student_account_id),
             INDEX idx_subject (subject_type, subject_id),
             INDEX idx_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
         if (!$conn->query($sql)) {
             $this->send_json(500, ['success' => false, 'message' => 'Failed to initialize feedback table: ' . $conn->error]);
@@ -203,7 +203,7 @@ class FeedbackRepliesController extends Controller
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (message_id),
             KEY idx_feedback_id (feedback_id, created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
         if (!$conn->query($sql)) {
             $this->send_json(500, ['success' => false, 'message' => 'Failed to initialize feedback_messages table: ' . $conn->error]);

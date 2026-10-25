@@ -190,12 +190,19 @@ function confirmAction(message, onConfirm, options = {}) {
     });
 }
 
+// YYYY-MM-DD in the user's own timezone, for date inputs and filenames.
+// toISOString() gives the UTC date instead, which in the Philippines
+// (UTC+8) is still yesterday until 8 AM.
+function localDateString(date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 // Initialize date input with today's date
 function setTodayDate(inputId) {
     const input = document.getElementById(inputId);
     if (input) {
-        const today = new Date().toISOString().split('T')[0];
-        input.value = today;
+        input.value = localDateString();
     }
 }
 
@@ -439,8 +446,9 @@ function userAvatarUrl(user) {
 }
 
 // Default avatar for the 4 staff-ish roles that don't otherwise pick a
-// profile photo at account creation — the DepEd seal saved at
-// uploads/profile-images/default-profile.jpg. Uploading a real photo (or
+// profile photo at account creation — the DepEd seal at img/deped-seal.jpg
+// (a tracked file; uploads/ is git-ignored, so a copy there never reaches a
+// fresh install or the live server). Uploading a real photo (or
 // still having none, for student/sdo) is unaffected: this is only ever a
 // *display* fallback, layered on in displayAvatarUrl() below, never written
 // to users_tables.profile_image itself.
@@ -448,7 +456,7 @@ const DEFAULT_AVATAR_ROLES = ['coordinator', 'counselor', 'teacher', 'counselor-
 
 function defaultAvatarUrl(user) {
     if (!user || !DEFAULT_AVATAR_ROLES.includes(user.role)) return null;
-    return '../../uploads/profile-images/default-profile.jpg';
+    return '../../img/deped-seal.jpg';
 }
 
 // What to actually show for this user's avatar: their own uploaded photo if

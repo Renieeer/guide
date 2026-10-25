@@ -24,8 +24,39 @@
             if (!headers.has('X-CSRF-TOKEN')) headers.set('X-CSRF-TOKEN', meta.getAttribute('content'));
             init.headers = headers;
         }
-        return originalFetch.call(this, input, init);
+        // A dropped connection rejects with a browser-specific TypeError
+        // ("Failed to fetch", "Load failed", ...). Aborts are left alone,
+        // since callers check for those by name.
+        return originalFetch.call(this, input, init).catch(function (err) {
+            if (err && err.name === 'TypeError') {
+                throw friendlyError("Can't reach the server. Check your internet connection and try again.");
+            }
+            throw err;
+        });
     };
+
+    // Pages show error.message to the user, so when the server answers with
+    // an HTML page instead of JSON (Laravel's 419 "Page Expired", a host
+    // error page, ...) say what happened instead of showing the JSON parse
+    // error ("Unexpected token '<', "<!DOCTYPE"... is not valid JSON").
+    var originalJson = Response.prototype.json;
+    Response.prototype.json = function () {
+        var status = this.status;
+        return originalJson.call(this).catch(function (err) {
+            if (!(err instanceof SyntaxError)) throw err;
+            if (status === 419) {
+                throw friendlyError('Your session has expired. Please refresh the page and try again.');
+            }
+            throw friendlyError('The server ran into a problem. Please try again in a moment.');
+        });
+    };
+
+    // `friendly` marks the message as safe to show as-is (see auth.js).
+    function friendlyError(message) {
+        var err = new Error(message);
+        err.friendly = true;
+        return err;
+    }
 })();
 
 (function () {

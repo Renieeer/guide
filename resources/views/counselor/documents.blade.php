@@ -445,7 +445,8 @@
                                 <i class="fas fa-image"></i>
                                 <span>Click to select or drag and drop images (JPG, PNG)</span>
                             </label>
-                            <input type="file" id="fileInput" name="file" accept="image/*" required>
+                            {{-- No "required": the input is hidden (the label above is the picker), so the browser can't point at it and the form just silently refused to submit. handleUpload() checks for a file and says so. --}}
+                            <input type="file" id="fileInput" name="file" accept="image/*">
                         </div>
                         <small style="color: #64748b; margin-top: 8px; display: block;">
                             Max file size: 10MB | Supported: JPG, PNG, GIF, WebP

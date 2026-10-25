@@ -199,7 +199,7 @@ function formatMonthYear(date) {
 }
 
 function formatDateForInput(date) {
-    return date.toISOString().split('T')[0];
+    return localDateString(date);
 }
 
 function escapeHtml(value) {

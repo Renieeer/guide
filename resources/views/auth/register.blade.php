@@ -190,8 +190,8 @@
         </div>
     </div>
 
-    <script src="{{ asset('js/otp-verify.js') }}"></script>
-    <script src="{{ asset('js/register.js') }}"></script>
+    <script src="{{ asset('js/otp-verify.js') }}?v={{ filemtime(public_path('js/otp-verify.js')) }}"></script>
+    <script src="{{ asset('js/register.js') }}?v={{ filemtime(public_path('js/register.js')) }}"></script>
     <script>
         const navToggle = document.getElementById('navToggle');
         const navLinks = document.getElementById('navLinks');

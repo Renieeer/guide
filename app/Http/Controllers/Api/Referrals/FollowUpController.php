@@ -167,7 +167,7 @@ class FollowUpController extends Controller
         CREATE TABLE IF NOT EXISTS follow_up (
             Follow_id INT NOT NULL AUTO_INCREMENT,
             PRIMARY KEY (Follow_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
         $columns = [
@@ -219,7 +219,7 @@ class FollowUpController extends Controller
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (note_id),
             KEY idx_follow_up_id (follow_up_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
     }
 

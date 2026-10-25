@@ -708,7 +708,7 @@ function buildExportTable() {
 }
 
 function exportFileBaseName() {
-    return `${reportRoleSlug()}-cases-${(currentSchool || 'school').replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}`;
+    return `${reportRoleSlug()}-cases-${(currentSchool || 'school').replace(/\s+/g, '-')}-${localDateString()}`;
 }
 
 /* ---- Export preview modals — same "view before you download" flow as
