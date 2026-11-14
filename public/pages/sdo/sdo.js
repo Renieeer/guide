@@ -129,7 +129,7 @@ function loadDistrictSummary() {
         })
         .catch(error => {
             console.error('Error loading district summary:', error);
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Unable to load district data.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Unable to load district data.</td></tr>';
         });
 }
 
@@ -158,7 +158,7 @@ function renderDistrictPagination(totalFiltered, startIdx, endIdx, totalPages) {
         <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${districtCurrentPage <= 1 ? 'disabled' : ''}>
             <i class="bi bi-chevron-left"></i> Prev
         </button>
-        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${totalFiltered} &middot; Page ${districtCurrentPage} of ${totalPages}</span>
+        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${escapeHtml(totalFiltered)} &middot; Page ${escapeHtml(districtCurrentPage)} of ${totalPages}</span>
         <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${districtCurrentPage >= totalPages ? 'disabled' : ''}>
             Next <i class="bi bi-chevron-right"></i>
         </button>`;
@@ -168,37 +168,28 @@ function renderDistrictSummary(rows) {
     const tbody = document.getElementById('districtTableBody');
 
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No schools found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No schools found.</td></tr>';
         return;
     }
 
     tbody.innerHTML = rows.map(row => {
         const resolutionRate = row.referralCount > 0 ? Math.round((row.resolvedCount / row.referralCount) * 100) : 0;
         const lastActivity = row.lastActivity ? new Date(row.lastActivity).toLocaleDateString() : 'No activity yet';
-        const status = row.referralCount === 0 ? 'Good' : (resolutionRate >= 70 ? 'Good' : 'Attention Needed');
 
         return `
             <tr>
                 <td><strong>${escapeHtml(row.district)}</strong></td>
-                <td>${row.schoolCount}</td>
-                <td>${row.referralCount}</td>
-                <td>${row.resolvedCount}</td>
+                <td>${escapeHtml(row.schoolCount)}</td>
+                <td>${escapeHtml(row.referralCount)}</td>
+                <td>${escapeHtml(row.resolvedCount)}</td>
                 <td>${resolutionRate}%</td>
                 <td>${lastActivity}</td>
-                <td>${createBadge(status === 'Good' ? 'completed' : 'pending')}</td>
             </tr>
         `;
     }).join('');
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 document.addEventListener('DOMContentLoaded', loadSDODashboard);
 

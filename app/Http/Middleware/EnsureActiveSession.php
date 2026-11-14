@@ -46,6 +46,37 @@ class EnsureActiveSession
             ], 401);
         }
 
+        $this->pinScopeToAccount($request, $user);
+
         return $next($request);
+    }
+
+    // The API controllers read the school and grade scope a request is about
+    // straight from the query string ($_GET['school'], ...grade_scope), which
+    // the browser controls. Replace them with the logged-in account's own
+    // before any controller runs, so a request can't ask for another
+    // school's or another grade's records. Always set, not only when sent:
+    // several endpoints treat a missing school as "every school".
+    // The SDO works across the whole district and keeps what it sent.
+    private function pinScopeToAccount(Request $request, array $user): void
+    {
+        $role = (string) ($user['role'] ?? '');
+        if (in_array($role, api_roles_sdo(), true)) {
+            return;
+        }
+
+        $school = (string) ($user['school'] ?? '');
+        $scope = in_array($role, api_roles_guidance(), true) ? (string) ($user['grade'] ?? '') : '';
+
+        foreach (['school' => $school, 'school_attended' => $school, 'grade_scope' => $scope] as $key => $value) {
+            $_GET[$key] = $value;
+            $request->query->set($key, $value);
+        }
+        foreach (['school', 'school_attended'] as $key) {
+            if (array_key_exists($key, $_POST)) {
+                $_POST[$key] = $school;
+                $request->request->set($key, $school);
+            }
+        }
     }
 }

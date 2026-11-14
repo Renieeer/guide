@@ -29,13 +29,15 @@ class StudentHistoryController extends Controller
             $this->send_json(400, ['success' => false, 'message' => 'student_id is required']);
         }
 
+        // The student themself, or guidance staff of the student's school
+        // (within their grades), or the SDO.
+        api_require_student($conn, $studentId, array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
+
         // The Stage 2 assessment document is confidential — staff (counselor,
         // other-school, coordinator) see it in the history timeline, the student
-        // it's about never does. pages/student/appointment-history.js and
-        // pages/student/dashboard.js pass role=student; every staff caller omits
-        // role, so the default is to include it.
-        $callerRole = strtolower(trim((string)($_GET['role'] ?? '')));
-        $includeAssessments = $callerRole !== 'student';
+        // it's about never does. Decided by the logged-in account: it used to be
+        // the page's role=student flag, which a student could simply leave out.
+        $includeAssessments = api_role() !== 'student';
 
         $studentStmt = $conn->prepare('
     SELECT s.StudentId, s.AccountID, s.LRN, s.FirstName, s.MiddleName, s.LastName, s.Nickname, s.Sex, s.Age, s.Grade, s.Section,

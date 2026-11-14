@@ -100,12 +100,12 @@ function renderConversationList() {
         const isUnread = f.status === 'new';
         const preview = f.last_message || f.message;
         return `
-            <div class="conversation-item ${isActive ? 'is-active' : ''} ${isUnread ? 'is-unread' : ''}" onclick="selectConversation('${f.id}')">
+            <div class="conversation-item ${isActive ? 'is-active' : ''} ${isUnread ? 'is-unread' : ''}" onclick="selectConversation('${jsStr(f.id)}')">
                 <div class="conversation-avatar">${escapeHtml(getInitials(f.student_name))}</div>
                 <div class="conversation-info">
                     <div class="conversation-top-row">
                         <span class="conversation-name">${escapeHtml(f.student_name)}</span>
-                        <span class="conversation-time">${formatConversationTime(f.last_activity_at)}</span>
+                        <span class="conversation-time">${escapeHtml(formatConversationTime(f.last_activity_at))}</span>
                     </div>
                     <div class="conversation-subject">${escapeHtml(FEEDBACK_TYPE_LABELS[f.subject_type] || f.subject_type)}</div>
                     <div class="conversation-preview">${escapeHtml(preview)}</div>
@@ -226,11 +226,7 @@ function formatConversationTime(dateStr) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value ?? '';
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 /* ── Ratings & Reviews (Coordinator feature, + Counselor's unread tracking) ── */
 
@@ -328,7 +324,7 @@ function renderRatingsList(ratings) {
 
     const sorted = [...ratings].sort((a, b) => new Date(b.dateSent) - new Date(a.dateSent));
     container.innerHTML = sorted.map(r => `
-        <div class="review-card ${r.read ? '' : 'is-unread'}" onclick="markRatingRead('${r.id}')">
+        <div class="review-card ${r.read ? '' : 'is-unread'}" onclick="markRatingRead('${jsStr(r.id)}')">
             <div class="review-card-top">
                 <div class="star-display">${starsHtml(r.rating)}</div>
                 <span class="review-date">${formatDate(r.dateSent)}</span>

@@ -135,7 +135,7 @@ function populateSchoolDropdown() {
         .sort((a, b) => a.localeCompare(b));
 
     select.innerHTML = '<option value="">All schools</option>' +
-        options.map(name => `<option value="${name.replace(/"/g, '&quot;')}">${name}</option>`).join('');
+        options.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
 
     if (previous && options.includes(previous)) {
         select.value = previous;

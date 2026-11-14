@@ -202,14 +202,7 @@ function formatDateForInput(date) {
     return localDateString(date);
 }
 
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Fixed category per event (instead of a per-event color hash) so the
 // calendar reads consistently at a glance: manually scheduled events,
@@ -314,7 +307,7 @@ function renderAppointmentCalendar() {
             const title = escapeHtml(isAppointment ? `Appointment: ${event.title || 'Student'}` : (event.title || 'Event'));
             const category = getEventCategory(event, isAppointment);
             const meta = SCHEDULE_CATEGORY_META[category];
-            html += `<div class="schedule-event-block ${meta.className}" data-event-id="${event.id}" onclick="openViewEventModal('${event.id}')" title="${meta.label}: ${title}"><i class="bi ${meta.icon}"></i><span class="chip-label">${title}</span></div>`;
+            html += `<div class="schedule-event-block ${escapeHtml(meta.className)}" data-event-id="${escapeHtml(event.id)}" onclick="openViewEventModal('${jsStr(event.id)}')" title="${escapeHtml(meta.label)}: ${title}"><i class="bi ${escapeHtml(meta.icon)}"></i><span class="chip-label">${title}</span></div>`;
         });
 
         html += '</div></div>';
@@ -668,16 +661,16 @@ function loadAppointmentRequests() {
 
                 return `
                     <tr>
-                        <td><strong>${request.student_name}</strong></td>
+                        <td><strong>${escapeHtml(request.student_name)}</strong></td>
                         <td>${formatDate(request.preferred_date)}</td>
-                        <td>${request.preferred_time}</td>
-                        <td>${capitalizeFirst(request.reason.replace('-', ' '))}</td>
+                        <td>${escapeHtml(request.preferred_time)}</td>
+                        <td>${escapeHtml(capitalizeFirst(request.reason.replace('-', ' ')))}</td>
                         <td>${statusBadge}</td>
                         <td>
-                            <button class="btn btn-sm btn-info" onclick="viewRequestDetails('${request.id}')"><i class="bi bi-eye"></i> View</button>
-                            ${request.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="approveAppointment('${request.id}')"><i class="bi bi-check-lg"></i> Approve</button>
-                            <button class="btn btn-sm btn-warning" onclick="proposeChanges('${request.id}')"><i class="bi bi-pencil"></i> Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="rejectRequest('${request.id}')"><i class="bi bi-x-lg"></i> Reject</button>` : ''}
+                            <button class="btn btn-sm btn-info" onclick="viewRequestDetails('${jsStr(request.id)}')"><i class="bi bi-eye"></i> View</button>
+                            ${request.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="approveAppointment('${jsStr(request.id)}')"><i class="bi bi-check-lg"></i> Approve</button>
+                            <button class="btn btn-sm btn-warning" onclick="proposeChanges('${jsStr(request.id)}')"><i class="bi bi-pencil"></i> Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectRequest('${jsStr(request.id)}')"><i class="bi bi-x-lg"></i> Reject</button>` : ''}
                         </td>
                     </tr>
                 `;
@@ -689,7 +682,7 @@ function loadAppointmentRequests() {
             const tbody = document.getElementById('appointmentRequestsBody');
             if (tbody) {
                 tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #f00;">Error: ${error.message}</td>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #f00;">Error: ${escapeHtml(error.message)}</td>
                 </tr>`;
             }
             appointmentCalendarEvents = [];

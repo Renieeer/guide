@@ -34,6 +34,19 @@ class AppointmentEmailController extends Controller
                 $this->send_json(400, ['success' => false, 'message' => 'request_id and event are required']);
             }
 
+            // Re-sends an appointment email: guidance staff, for their own
+            // school's requests (anyone could trigger e.g. a fake "approved"
+            // email to any student before).
+            api_require_role(api_roles_guidance());
+            $own = $conn->prepare('SELECT school_attended FROM appointment_requests WHERE request_id = ?');
+            $own->bind_param('s', $requestId);
+            $own->execute();
+            $ownRow = $own->get_result()->fetch_assoc();
+            $own->close();
+            if (!$ownRow || !api_same_school($ownRow['school_attended'] ?? '')) {
+                $this->send_json(404, ['success' => false, 'message' => 'Request not found']);
+            }
+
             $result = notify_appointment_email($conn, $requestId, $event);
 
             $this->send_json($result['success'] ? 200 : 502, [

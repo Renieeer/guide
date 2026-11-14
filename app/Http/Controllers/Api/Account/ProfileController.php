@@ -11,10 +11,9 @@ use Throwable;
 // (student, teacher, counselor, coordinator, other-school, sdo) view and
 // edit their own name/password and upload a profile photo.
 //
-// This intentionally trusts the `id` the client sends, the same way
-// api/manage-accounts.php already does — this app authenticates on the
-// client (sessionStorage/localStorage) rather than server-side sessions, so
-// every existing self-service/admin endpoint follows that same model.
+// Always works on the logged-in account. The `id` the page sends is
+// ignored: trusting it let any logged-in user rename or change the password
+// of any other account (e.g. a student taking over the SDO account).
 
 // Profile photos live in users_tables.profile_image_data (a BLOB) — see
 // ensure_users_table_profile_image_blob_columns() — and are streamed back
@@ -36,6 +35,10 @@ class ProfileController extends Controller
             ensure_users_table_profile_image_column($conn);
             ensure_users_table_profile_image_blob_columns($conn);
             ensure_users_table_grade_column($conn);
+
+            $ownId = api_user_id();
+            $_GET['id'] = $ownId;
+            $_POST['id'] = $ownId;
 
             $method = $_SERVER['REQUEST_METHOD'];
 

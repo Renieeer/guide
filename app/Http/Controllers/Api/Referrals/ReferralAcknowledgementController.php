@@ -21,6 +21,7 @@ class ReferralAcknowledgementController extends Controller
             if ($referralId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
             }
+            api_require_referral($conn, $referralId, array_merge(api_roles_guidance(), ['teacher']));
 
             $stmt = $conn->prepare('
         SELECT ack_id, referral_id, counselor_id, counselor_name, attended_by, follow_up_count, referred_to, checklist_json, created_at, updated_at
@@ -60,8 +61,11 @@ class ReferralAcknowledgementController extends Controller
             }
 
             $referralId = (int)($body['referral_id'] ?? 0);
-            $counselorId = trim((string)($body['counselor_id'] ?? ''));
-            $counselorName = trim((string)($body['counselor_name'] ?? ''));
+            // Only the referral's own counselors can save this stage, and it is
+            // recorded under the logged-in counselor, not a name the page sends.
+            api_require_referral($conn, $referralId, api_roles_counselor());
+            $counselorId = (string) api_user_id();
+            $counselorName = api_user_name();
             $attendedBy = trim((string)($body['attended_by'] ?? ''));
             $followUpCount = trim((string)($body['follow_up_count'] ?? ''));
             $referredTo = trim((string)($body['referred_to'] ?? ''));

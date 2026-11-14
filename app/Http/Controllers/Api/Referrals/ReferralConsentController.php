@@ -40,6 +40,8 @@ class ReferralConsentController extends Controller
                 return response('', 400);
             }
 
+            api_require_referral_row($conn, 'referral_consent', 'consent_id', $consentId, api_roles_guidance());
+
             $stmt = $conn->prepare('SELECT original_filename, file_data, mime_type FROM referral_consent WHERE consent_id = ?');
             $stmt->bind_param('i', $consentId);
             $stmt->execute();
@@ -61,6 +63,7 @@ class ReferralConsentController extends Controller
             if ($referralId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
             }
+            api_require_referral($conn, $referralId, api_roles_guidance());
 
             $stmt = $conn->prepare('
         SELECT consent_id, referral_id, original_filename, file_size, uploaded_by, uploaded_at
@@ -96,11 +99,12 @@ class ReferralConsentController extends Controller
 
         if ($method === 'POST') {
             $referralId = (int)($_POST['referral_id'] ?? 0);
-            $uploadedBy = trim((string)($_POST['uploaded_by'] ?? ''));
 
             if ($referralId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
             }
+            api_require_referral($conn, $referralId, api_roles_counselor());
+            $uploadedBy = api_user_name();
 
             if (!isset($_FILES['file']) || $_FILES['file']['error'] === UPLOAD_ERR_NO_FILE) {
                 $this->send_json(400, ['success' => false, 'message' => 'No file was uploaded']);

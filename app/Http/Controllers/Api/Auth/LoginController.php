@@ -72,6 +72,26 @@ class LoginController extends Controller
                 json_out(['success' => false, 'message' => 'Incorrect credentials provided.']);
             }
 
+            // Teacher accounts sign in on staff-login, everyone else on login
+            // (auth.js sends which page it is). This has to be checked before
+            // logging in: session()->regenerate() below issues a new CSRF
+            // token, so logging the account in and then refusing it in the
+            // browser left the page holding a stale token, and the next
+            // Sign In click got Laravel's HTML 419 page ("Unexpected token
+            // '<', "<!DOCTYPE"... is not valid JSON"). It also logged the
+            // account in, and kicked its other sessions, for a sign-in the
+            // page said had failed.
+            $portal = $data['portal'] ?? null;
+            if ($portal === 'staff' || $portal === 'main') {
+                $isTeacher = ($user['Type'] ?? '') === 'teacher';
+                if ($portal === 'staff' && !$isTeacher) {
+                    json_out(['success' => false, 'wrongPortal' => true, 'message' => 'This is the teacher login. Please use the regular Login page for your account.']);
+                }
+                if ($portal === 'main' && $isTeacher) {
+                    json_out(['success' => false, 'wrongPortal' => true, 'message' => 'Teacher accounts should use the Staff Login page.']);
+                }
+            }
+
             if ((int)($user['is_active'] ?? 1) === 0) {
                 // Student accounts are deactivated by the coordinator (see
                 // manage-accounts.php's setActive action); every other account type

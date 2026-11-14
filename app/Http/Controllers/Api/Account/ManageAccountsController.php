@@ -15,6 +15,10 @@ class ManageAccountsController extends Controller
         ensure_users_table_active_column($conn);
 
         try {
+            // Coordinators manage their own school's accounts. The school
+            // comes from their account, not from the request.
+            api_require_role(api_roles_coordinator());
+
             $method = $_SERVER['REQUEST_METHOD'];
 
             if ($method === 'GET') {
@@ -98,7 +102,7 @@ class ManageAccountsController extends Controller
                     // student who has left the school) — staff account status stays
                     // an SDO-only action (see account-status.php).
                     $id = (int)($payload['id'] ?? 0);
-                    $school = trim((string)($payload['school'] ?? ''));
+                    $school = api_school();
                     $active = !empty($payload['active']) ? 1 : 0;
 
                     if ($id === 0 || $school === '') {
@@ -131,7 +135,7 @@ class ManageAccountsController extends Controller
                 $first_name = trim((string)($payload['first_name'] ?? ''));
                 $last_name = trim((string)($payload['last_name'] ?? ''));
                 $new_password = trim((string)($payload['password'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
+                $school = api_school();
 
                 if ($id === 0 || $first_name === '' || $last_name === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);

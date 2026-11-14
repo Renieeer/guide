@@ -186,7 +186,7 @@ function renderSections() {
                 <td><strong>${escapeHtml(section.SectionName)}</strong></td>
                 <td class="text-center">
                     <div class="action-buttons" style="justify-content: center;">
-                        <button type="button" class="btn-edit" data-edit-id="${section.SectionID}">
+                        <button type="button" class="btn-edit" data-edit-id="${escapeHtml(section.SectionID)}">
                             <i class="bi bi-pencil-square"></i> Edit
                         </button>
                     </div>
@@ -210,19 +210,12 @@ function renderSectionsPagination(totalFiltered, startIdx, endIdx, totalPages) {
         <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${sectionCurrentPage <= 1 ? 'disabled' : ''}>
             <i class="bi bi-chevron-left"></i> Prev
         </button>
-        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${totalFiltered} &middot; Page ${sectionCurrentPage} of ${totalPages}</span>
+        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${escapeHtml(totalFiltered)} &middot; Page ${sectionCurrentPage} of ${totalPages}</span>
         <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${sectionCurrentPage >= totalPages ? 'disabled' : ''}>
             Next <i class="bi bi-chevron-right"></i>
         </button>`;
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 document.addEventListener('DOMContentLoaded', initAddSectionPage);

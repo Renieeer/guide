@@ -20,6 +20,7 @@ class ReferralScreeningController extends Controller
             if ($referralId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
             }
+            api_require_referral($conn, $referralId, api_roles_guidance());
             // Optional — Stage 1's Interview/Background section and Stage 2's Risk
             // Assessment section each only want their own entries, not both mixed
             // together. Omit to get every entry regardless of stage (used by
@@ -71,8 +72,11 @@ class ReferralScreeningController extends Controller
             }
 
             $referralId = (int)($body['referral_id'] ?? 0);
-            $counselorId = trim((string)($body['counselor_id'] ?? ''));
-            $counselorName = trim((string)($body['counselor_name'] ?? ''));
+            // Only the referral's own counselors can add to it, and the note
+            // is recorded under the logged-in counselor, not a name the page sends.
+            api_require_referral($conn, $referralId, api_roles_counselor());
+            $counselorId = (string) api_user_id();
+            $counselorName = api_user_name();
             $interviewNotes = trim((string)($body['interview_notes'] ?? ''));
             $observations = trim((string)($body['observations'] ?? ''));
             $riskLevel = trim((string)($body['risk_level'] ?? ''));
@@ -140,6 +144,7 @@ class ReferralScreeningController extends Controller
             if ($screeningId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'screening_id is required']);
             }
+            api_require_referral_row($conn, 'referral_screening', 'screening_id', $screeningId, api_roles_counselor());
 
             $interviewNotes = trim((string)($body['interview_notes'] ?? ''));
             $observations = trim((string)($body['observations'] ?? ''));

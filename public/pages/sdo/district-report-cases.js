@@ -322,16 +322,16 @@ function renderSchoolBreakdown() {
     tbody.innerHTML = schoolBreakdown.map((s, i) => `
         <tr style="--i:${i}">
             <td><strong>${escapeHtml(s.school)}</strong></td>
-            <td class="text-center">${s.total > 0 ? `<span class="badge badge-in-progress">${s.total}</span>` : '0'}</td>
-            <td class="text-center">${s.male}</td>
-            <td class="text-center">${s.female}</td>
+            <td class="text-center">${s.total > 0 ? `<span class="badge badge-in-progress">${escapeHtml(s.total)}</span>` : '0'}</td>
+            <td class="text-center">${escapeHtml(s.male)}</td>
+            <td class="text-center">${escapeHtml(s.female)}</td>
         </tr>
     `).join('') + `
         <tr style="font-weight: 700; background: #f1f5f9;">
             <td>Overall Total</td>
-            <td class="text-center"><strong style="color: #3b82f6; font-size: 16px;">${totals.total}</strong></td>
-            <td class="text-center">${totals.male}</td>
-            <td class="text-center">${totals.female}</td>
+            <td class="text-center"><strong style="color: #3b82f6; font-size: 16px;">${escapeHtml(totals.total)}</strong></td>
+            <td class="text-center">${escapeHtml(totals.male)}</td>
+            <td class="text-center">${escapeHtml(totals.female)}</td>
         </tr>
     `;
 }
@@ -347,8 +347,8 @@ function gradeCell(bucketKey, grade, countsMap = counts) {
 
 // Same flattening as coordinator/report-case.js, keeping the M/F
 // split per grade (rowTotals below sums it into m+f wherever a single
-// number is all that's needed) — see that file for the full explanation of
-// the section/category/uncategorized/subtotal shape.
+// number is all that's needed), except that a section's uncategorized cases
+// get their own row here so every section's rows add up to its total.
 // gradesList defaults to the on-screen global (every existing call site is
 // unaffected); the export panel passes its own freshly-fetched grade range
 // instead, so a "Division-Wide" export spanning both elementary (1-6) and
@@ -380,10 +380,19 @@ function buildDisplayRows(sectionsList = sections, countsMap = counts, gradesLis
             addToTotals(cat.categoryId);
         });
 
-        // Uncategorized cases (no category chosen yet) still count toward
-        // the section/grand totals below — they just don't get their own
-        // listed row, since "Uncategorized" isn't a real case category.
-        addToTotals(`section-${section.sectionId}-uncategorized`);
+        // Cases with no category chosen yet still count toward the section
+        // and grand totals, so they get their own "Uncategorized" row
+        // whenever there are any. Without it, the rows above a section's
+        // total wouldn't add up to that total.
+        const uncategorizedKey = `section-${section.sectionId}-uncategorized`;
+        const uncategorizedCount = gradesList.reduce((sum, g) => {
+            const cell = gradeCell(uncategorizedKey, g, countsMap);
+            return sum + cell.m + cell.f;
+        }, 0);
+        if (uncategorizedCount > 0) {
+            rows.push({ type: 'category', label: 'Uncategorized', bucketKey: uncategorizedKey });
+        }
+        addToTotals(uncategorizedKey);
 
         rows.push({ type: 'subtotal', label: `Total ${section.sectionCode}: ${section.sectionName}`, totals: sectionTotal });
     });
@@ -439,7 +448,7 @@ function renderCasesTable() {
         tr.style.setProperty('--i', index);
 
         if (row.type === 'header') {
-            tr.innerHTML = `<td colspan="${colCount}" style="font-weight: 700; background: #e2e8f0;">${row.label}</td>`;
+            tr.innerHTML = `<td colspan="${colCount}" style="font-weight: 700; background: #e2e8f0;">${escapeHtml(row.label)}</td>`;
             tableBody.appendChild(tr);
             return;
         }
@@ -455,13 +464,13 @@ function renderCasesTable() {
             const cell = totals[g] || { m: 0, f: 0 };
             const t = cell.m + cell.f;
             grandTotal += t;
-            return `<td class="text-center">${cell.m}</td><td class="text-center">${cell.f}</td><td class="text-center">${t > 0 ? `<span class="badge badge-in-progress">${t}</span>` : '0'}</td>`;
+            return `<td class="text-center">${escapeHtml(cell.m)}</td><td class="text-center">${escapeHtml(cell.f)}</td><td class="text-center">${t > 0 ? `<span class="badge badge-in-progress">${escapeHtml(t)}</span>` : '0'}</td>`;
         }).join('');
 
         tr.innerHTML = `
-            <td><strong>${row.label}</strong></td>
+            <td><strong>${escapeHtml(row.label)}</strong></td>
             ${gradeCellsHtml}
-            <td class="text-center"><strong style="color: #3b82f6; font-size: 16px;">${grandTotal}</strong></td>
+            <td class="text-center"><strong style="color: #3b82f6; font-size: 16px;">${escapeHtml(grandTotal)}</strong></td>
         `;
 
         if (row.type === 'category') {
@@ -746,7 +755,7 @@ function populateExportPeriodSelects() {
     const yearSelect = document.getElementById('exportYearSelect');
     if (!monthSelect || !yearSelect || monthSelect.options.length) return; // already populated
 
-    monthSelect.innerHTML = MONTH_NAMES.map((name, i) => `<option value="${i + 1}">${name}</option>`).join('');
+    monthSelect.innerHTML = MONTH_NAMES.map((name, i) => `<option value="${i + 1}">${escapeHtml(name)}</option>`).join('');
     monthSelect.value = String(new Date().getMonth() + 1);
 
     const currentYear = new Date().getFullYear();
@@ -799,7 +808,7 @@ function populateExportSectionOptions() {
     if (!select) return;
     const previous = select.value || 'all';
     select.innerHTML = `<option value="all">All Sections</option>` +
-        sections.map(s => `<option value="${s.sectionId}">${escapeHtml(s.sectionCode)}. ${escapeHtml(s.sectionName)}</option>`).join('');
+        sections.map(s => `<option value="${escapeHtml(s.sectionId)}">${escapeHtml(s.sectionCode)}. ${escapeHtml(s.sectionName)}</option>`).join('');
     select.value = sections.some(s => s.sectionId === previous) ? previous : 'all';
     populateExportCategoryOptions(select.value);
 }
@@ -820,7 +829,7 @@ function populateExportCategoryOptions(sectionId) {
     }
     select.disabled = false;
     select.innerHTML = `<option value="all">All Categories</option>` +
-        section.categories.map(c => `<option value="${c.categoryId}">${escapeHtml(c.categoryName)}</option>`).join('');
+        section.categories.map(c => `<option value="${escapeHtml(c.categoryId)}">${escapeHtml(c.categoryName)}</option>`).join('');
     select.value = 'all';
 }
 
@@ -1938,14 +1947,7 @@ function showAlert(type, message) {
     }, 3000);
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Logout is provided by js/auth.js (calls api/logout to clear the
 // server-side session token) — do not redeclare it here.

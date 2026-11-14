@@ -590,7 +590,7 @@ function buildGradeCheckboxes(accountId, grade, level) {
     const allSelected = range.every(g => selected.has(g));
 
     return `
-                <div class="grade-checkbox-group" data-account-id="${accountId}">
+                <div class="grade-checkbox-group" data-account-id="${escapeHtml(accountId)}">
                     <label class="grade-checkbox grade-checkbox-all">
                         <input type="checkbox" data-select-all ${allSelected ? 'checked' : ''}>
                         <span>All</span>
@@ -641,7 +641,7 @@ function buildFolderCard(item) {
                     </div>
                     <div class="school-folder-meta">
                         <span class="school-folder-dots">${dots}</span>
-                        <span class="school-folder-count">${item.totalAssigned} ${accountLabel}</span>
+                        <span class="school-folder-count">${escapeHtml(item.totalAssigned)} ${accountLabel}</span>
                     </div>
                 </div>
                 <i class="bi bi-chevron-right school-folder-chevron"></i>
@@ -658,7 +658,7 @@ function buildSchoolInfoEdit(item) {
 
     const levels = ['Secondary', 'East', 'West', 'South'];
     const options = levels.map(lvl =>
-        `<option value="${lvl}" ${item.schoolLevel === lvl ? 'selected' : ''}>${lvl}</option>`
+        `<option value="${escapeHtml(lvl)}" ${item.schoolLevel === lvl ? 'selected' : ''}>${escapeHtml(lvl)}</option>`
     ).join('');
 
     return `
@@ -731,12 +731,12 @@ function wireSchoolDetailEvents(container) {
 function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
     if (!person || !person.name) {
         const assignBtn = editMode
-            ? `<button type="button" class="school-role-assign-btn" data-assign-role="${roleKey}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}">+ Assign an account</button>`
+            ? `<button type="button" class="school-role-assign-btn" data-assign-role="${escapeHtml(roleKey)}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}">+ Assign an account</button>`
             : '';
         return `
             <div class="school-role-slot">
                 <div class="school-role-slot-header">
-                    <span class="school-role-label">${label}</span>
+                    <span class="school-role-label">${escapeHtml(label)}</span>
                     <span class="badge badge-empty">Empty</span>
                 </div>
                 <p class="school-role-empty-text">No account assigned to this role yet.</p>
@@ -756,17 +756,17 @@ function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
         return `
             <div class="school-role-controls">
                 ${buildGradeCheckboxes(person.accountId, person.grade || '', schoolLevel)}
-                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${person.accountId}">Save</button>
-                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${person.accountId}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="${roleKey}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${person.accountId}">Replace Account</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${escapeHtml(person.accountId)}">Save</button>
+                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${escapeHtml(person.accountId)}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="${escapeHtml(roleKey)}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${escapeHtml(person.accountId)}">Replace Account</button>
             </div>
         `;
-    })() : `<div class="text-sm text-muted">${gradeDisplayLabel(person.grade, schoolLevel)}</div>`;
+    })() : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
 
     return `
         <div class="school-role-slot">
             <div class="school-role-slot-header">
-                <span class="school-role-label">${label}</span>
+                <span class="school-role-label">${escapeHtml(label)}</span>
                 <span class="badge ${badgeClass}">${badgeLabel}</span>
             </div>
             <div class="school-role-name">${escapeHtml(person.name)}</div>
@@ -833,12 +833,12 @@ function buildCounselorAccountBlock(person, schoolName, schoolLevel) {
         return `
             <div class="school-role-controls">
                 ${buildGradeCheckboxes(person.accountId, person.grade || '', schoolLevel)}
-                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${person.accountId}">Save</button>
-                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${person.accountId}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="counselor" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${person.accountId}">Replace Account</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${escapeHtml(person.accountId)}">Save</button>
+                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${escapeHtml(person.accountId)}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="counselor" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${escapeHtml(person.accountId)}">Replace Account</button>
             </div>
         `;
-    })() : `<div class="text-sm text-muted">${gradeDisplayLabel(person.grade, schoolLevel)}</div>`;
+    })() : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
 
     return `
         <div class="school-role-account">
@@ -1007,13 +1007,6 @@ function showSchoolAssignmentAlert(message, type) {
     }, 4500);
 }
 
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 document.addEventListener('DOMContentLoaded', initSchoolManagementPage);

@@ -22,6 +22,7 @@ class ReferralInterventionController extends Controller
             if ($referralId <= 0) {
                 $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
             }
+            api_require_referral($conn, $referralId, api_roles_guidance());
 
             $stmt = $conn->prepare('
         SELECT intervention_id, referral_id, counselor_id, counselor_name, checklist_json, notes, created_at, updated_at
@@ -60,8 +61,11 @@ class ReferralInterventionController extends Controller
             }
 
             $referralId = (int)($body['referral_id'] ?? 0);
-            $counselorId = trim((string)($body['counselor_id'] ?? ''));
-            $counselorName = trim((string)($body['counselor_name'] ?? ''));
+            // Only the referral's own counselors can save this stage, and it is
+            // recorded under the logged-in counselor, not a name the page sends.
+            api_require_referral($conn, $referralId, api_roles_counselor());
+            $counselorId = (string) api_user_id();
+            $counselorName = api_user_name();
             $notes = trim((string)($body['notes'] ?? ''));
             $checklist = is_array($body['checklist'] ?? null) ? $body['checklist'] : [];
 

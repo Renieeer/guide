@@ -16,6 +16,9 @@ class CaseScenarioController extends Controller
         $this->ensure_follow_up_tables($conn);
 
         if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            // Guidance staff list their own school's cases (school and grade
+            // scope are pinned to the account by the legacy.session middleware).
+            api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
             $school = trim((string)($_GET['school_attended'] ?? ''));
             $limit = (int)($_GET['limit'] ?? 50);
             if ($limit <= 0 || $limit > 200) {
@@ -102,10 +105,21 @@ class CaseScenarioController extends Controller
         $action = trim((string)($body['action'] ?? 'create'));
         $record = isset($body['record']) && is_array($body['record']) ? $body['record'] : $body;
 
+        // Counselors create and update their own school's cases.
+        api_require_role(api_roles_counselor());
+
         if ($action === 'update') {
             $caseUid = trim((string)($record['id'] ?? ''));
             if ($caseUid === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'Case id is required for update.']);
+            }
+            $own = $conn->prepare('SELECT school_attended FROM counselor_case_scenarios WHERE case_uid = ?');
+            $own->bind_param('s', $caseUid);
+            $own->execute();
+            $ownRow = $own->get_result()->fetch_assoc();
+            $own->close();
+            if (!$ownRow || !api_same_school($ownRow['school_attended'] ?? '')) {
+                $this->send_json(404, ['success' => false, 'message' => 'Case not found.']);
             }
 
             $status = trim((string)($record['status'] ?? 'pending'));
@@ -164,9 +178,10 @@ class CaseScenarioController extends Controller
             $this->send_json(400, ['success' => false, 'message' => 'Missing required case scenario fields.']);
         }
 
-        $counselorId = trim((string)($record['counselorId'] ?? ''));
-        $counselor = trim((string)($record['counselor'] ?? ''));
-        $school = trim((string)($record['schoolAttended'] ?? ''));
+        // Recorded under the logged-in counselor and their school.
+        $counselorId = (string) api_user_id();
+        $counselor = api_user_name();
+        $school = api_school();
         $sectionName = trim((string)($record['sectionName'] ?? ''));
         $categoryName = trim((string)($record['categoryName'] ?? ''));
         $caseTitle = trim((string)($record['caseTitle'] ?? ''));

@@ -162,7 +162,6 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-secondary" id="editCaseBtn">Edit Case</button>
                             <button class="btn btn-primary" id="closeCaseModal">Close</button>
                         </div>
                     </div>

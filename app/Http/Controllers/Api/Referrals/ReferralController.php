@@ -28,6 +28,32 @@ class ReferralController extends Controller
                 $referralId = trim((string)($_GET['id'] ?? $_GET['referral_id'] ?? ''));
                 $limit = (int)($_GET['limit'] ?? 0);
 
+                // What a caller may list is decided by their account, not by the
+                // role / user_id / student_id the page sends. Before, any
+                // logged-in user could list every referral of any school (or,
+                // with no filter at all, of every school). The SDO still sees all.
+                if (!api_is_sdo()) {
+                    if (api_role() === 'student') {
+                        $role = '';
+                        $userId = '';
+                        $studentId = (string) api_user_id();
+                    } elseif (api_role() === 'teacher') {
+                        $role = 'teacher';
+                        $userId = (string) api_user_id();
+                        $studentId = '';
+                    } elseif (api_is(api_roles_guidance())) {
+                        if (!in_array($role, ['counselor', 'coordinator', 'other-school'], true)) {
+                            $role = 'counselor';
+                        }
+                        $studentId = '';
+                        if ($school === '') {
+                            $this->send_json(200, ['success' => true, 'data' => [], 'count' => 0]);
+                        }
+                    } else {
+                        api_fail(403, "You don't have permission to do this.");
+                    }
+                }
+
                 // Whether this referral has a completed External Referral (DepEd
                 // Appendix C) form on file — see api/referral-external-referral.php.
                 // That table is only ever created lazily (on its first save), so a
@@ -121,6 +147,14 @@ class ReferralController extends Controller
 
                 $rows = $this->fetchReferralRows($conn, $sql, $types, $params);
 
+                // One referral asked for by id skips the filters above, so it
+                // gets the full per-referral check instead.
+                if ($referralId !== '' && !api_is_sdo()) {
+                    foreach ($rows as $row) {
+                        api_require_referral($conn, (int) $row['id'], array_merge(api_roles_guidance(), ['teacher', 'student']));
+                    }
+                }
+
                 // A referral has no single "assigned counselor" column of its own —
                 // whoever picks it up records themselves on referral_screening
                 // (Stage 1/2) instead. Only resolved for the student's own view
@@ -172,6 +206,9 @@ class ReferralController extends Controller
             }
 
             if ($method === 'POST') {
+                // Teachers refer students; counselors also log walk-in referrals.
+                api_require_role(array_merge(['teacher'], api_roles_counselor()));
+
                 $raw = file_get_contents('php://input');
                 $payload = json_decode($raw, true);
 
@@ -453,6 +490,19 @@ class ReferralController extends Controller
         $studentSchool = trim((string)($payload['student_school'] ?? $payload['studentSchool'] ?? $sharedDefaults['student_school'] ?? $schoolAttended));
         $stage = (int)($payload['stage'] ?? $sharedDefaults['stage'] ?? 1);
         $status = trim((string)($payload['status'] ?? $sharedDefaults['status'] ?? 'pending'));
+
+        // Who referred and which school the referral belongs to come from the
+        // logged-in account (the school decides which counselors see it).
+        // A counselor's walk-in keeps the referrer name they typed; a teacher's
+        // referral is always under their own name and starts at Stage 1.
+        $teacherId = (string) api_user_id();
+        $schoolAttended = api_school();
+        $studentSchool = api_school();
+        if (api_role() === 'teacher') {
+            $teacherName = api_user_name();
+            $stage = 1;
+            $status = 'pending';
+        }
 
         if ($studentId === '') {
             $studentId = null;

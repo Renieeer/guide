@@ -707,9 +707,9 @@
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><strong>${doc.student_id}</strong></td>
-                    <td><span class="doc-type-badge ${badgeClass}">${docType}</span></td>
-                    <td>${doc.original_filename}</td>
+                    <td><strong>${escapeHtml(doc.student_id)}</strong></td>
+                    <td><span class="doc-type-badge ${escapeHtml(badgeClass)}">${escapeHtml(docType)}</span></td>
+                    <td>${escapeHtml(doc.original_filename)}</td>
                     <td>${uploadDate}</td>
                     <td>${sizeKB} KB</td>
                     <td>

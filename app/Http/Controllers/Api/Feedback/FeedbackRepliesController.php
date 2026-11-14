@@ -27,8 +27,7 @@ class FeedbackRepliesController extends Controller
 
             if ($method === 'GET') {
                 $feedbackId = trim((string)($_GET['feedback_id'] ?? ''));
-                $studentId = trim((string)($_GET['student_id'] ?? ''));
-                $school = trim((string)($_GET['school'] ?? ''));
+                [$studentId, $school] = $this->callerScope();
 
                 $feedbackRow = $this->load_authorized_feedback($conn, $feedbackId, $studentId, $school);
 
@@ -81,12 +80,14 @@ class FeedbackRepliesController extends Controller
                 }
 
                 $feedbackId = trim((string)($payload['feedback_id'] ?? ''));
-                $senderRole = trim((string)($payload['sender_role'] ?? ''));
-                $senderAccountId = trim((string)($payload['sender_account_id'] ?? ''));
-                $senderName = trim((string)($payload['sender_name'] ?? ''));
                 $message = trim((string)($payload['message'] ?? ''));
-                $studentId = trim((string)($payload['student_id'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
+                // Who is posting comes from the logged-in account. It used to be
+                // request fields, so a student could post as "counselor" into any
+                // thread of their school by also sending the school name.
+                [$studentId, $school] = $this->callerScope();
+                $senderRole = api_role();
+                $senderAccountId = (string) api_user_id();
+                $senderName = api_user_name();
 
                 if ($feedbackId === '' || $senderRole === '' || $senderAccountId === '' || $senderName === '' || $message === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
@@ -215,6 +216,13 @@ class FeedbackRepliesController extends Controller
     // school (school). Exactly one of the two must be provided. Sends a 400/
     // 403/404 response and exits on any failure — callers can assume the
     // returned row is always authorized.
+    // [studentId, school] for load_authorized_feedback(), from the account:
+    // a student works in their own threads, guidance staff in their school's.
+    private function callerScope(): array {
+        api_require_role(array_merge(['student'], api_roles_guidance()));
+        return api_role() === 'student' ? [(string) api_user_id(), ''] : ['', api_school()];
+    }
+
     private function load_authorized_feedback(mysqli $conn, string $feedbackId, string $studentId, string $school): array {
         if ($feedbackId === '') {
             $this->send_json(400, ['success' => false, 'message' => 'feedback_id is required']);

@@ -96,12 +96,12 @@ function loadReferralsList() {
 
     tbody.innerHTML = referrals.reverse().map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
-            <td><strong>${referral.stage}/7</strong></td>
+            <td><strong>${escapeHtml(referral.stage)}/7</strong></td>
             <td>${createBadge(referral.status)}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">View</button>
@@ -125,11 +125,7 @@ function exitReferralDetail() {
     loadReferralsList();
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Must match ACKNOWLEDGEMENT_CHECKLIST_ITEMS in counselor/referral-status.js
 const ACKNOWLEDGEMENT_CHECKLIST_ITEMS = [

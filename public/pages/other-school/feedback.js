@@ -44,11 +44,11 @@ function displayFeedback() {
         .map(fb => `
             <div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span class="badge ${getBadgeColor(fb.type)}">${fb.type.charAt(0).toUpperCase() + fb.type.slice(1)}</span>
+                    <span class="badge ${escapeHtml(getBadgeColor(fb.type))}">${escapeHtml(fb.type.charAt(0).toUpperCase() + fb.type.slice(1))}</span>
                     <small style="color: #999;">${formatDate(fb.submittedDate)}</small>
                 </div>
-                <p style="margin: 10px 0;"><strong>${fb.submittedBy}</strong></p>
-                <p style="margin: 0; word-wrap: break-word;">${fb.message}</p>
+                <p style="margin: 10px 0;"><strong>${escapeHtml(fb.submittedBy)}</strong></p>
+                <p style="margin: 0; word-wrap: break-word;">${escapeHtml(fb.message)}</p>
             </div>
         `).join('');
 }

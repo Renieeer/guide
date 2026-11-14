@@ -165,7 +165,7 @@ function loadUserInfo() {
         const avatarEl = document.getElementById('userAvatar');
         const photoUrl = userAvatarUrl(user);
         if (photoUrl) {
-            avatarEl.innerHTML = `<img src="${photoUrl}" alt="">`;
+            avatarEl.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="">`;
         } else {
             const initials = String(user.name || 'Student').split(' ').map(n => n[0]).join('');
             avatarEl.textContent = initials.substring(0, 2);
@@ -237,14 +237,7 @@ function formatMonthYear(date) {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Fixed category per event (instead of a per-event color hash) so the
 // calendar reads consistently at a glance: manually scheduled events,
@@ -353,7 +346,7 @@ function renderAppointmentCalendar() {
         dayEvents.forEach(item => {
             const itemTitle = escapeHtml(item.title);
             const meta = SCHEDULE_CATEGORY_META[item.category] || SCHEDULE_CATEGORY_META.event;
-            html += `<div class="schedule-event-block ${meta.className}" onclick="openViewEventModal('${item.id}')" data-event-id="${item.id}" title="${meta.label}: ${itemTitle}"><i class="bi ${meta.icon}"></i><span class="chip-label">${itemTitle}</span></div>`;
+            html += `<div class="schedule-event-block ${escapeHtml(meta.className)}" onclick="openViewEventModal('${jsStr(item.id)}')" data-event-id="${escapeHtml(item.id)}" title="${escapeHtml(meta.label)}: ${itemTitle}"><i class="bi ${escapeHtml(meta.icon)}"></i><span class="chip-label">${itemTitle}</span></div>`;
         });
 
         html += '</div></div>';

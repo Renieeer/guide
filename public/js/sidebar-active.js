@@ -110,7 +110,7 @@ function renderProfilePopupAvatar(elementId, photoUrl, user) {
     const el = document.getElementById(elementId);
     if (!el) return;
     if (photoUrl) {
-        el.innerHTML = `<img src="${photoUrl}" alt="">`;
+        el.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="">`;
     } else {
         el.textContent = userInitials(user);
     }

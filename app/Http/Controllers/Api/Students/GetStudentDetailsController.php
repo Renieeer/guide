@@ -29,6 +29,10 @@ class GetStudentDetailsController extends Controller
                 json_out(['success' => false, 'message' => 'student_id is required']);
             }
 
+            // The student themself, or guidance staff of the student's school
+            // (within their grades), or the SDO.
+            api_require_student($conn, (string) $student_id, array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
+
             // Fetch student main information from student_table
             $query = "SELECT * FROM student_table WHERE `{$studentIdColumn}` = ?";
             $stmt = $conn->prepare($query);

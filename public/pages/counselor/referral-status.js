@@ -524,7 +524,7 @@ function renderInterventionChecklist() {
     const container = document.getElementById('interventionChecklist');
     container.innerHTML = INTERVENTION_ACTIVITY_ITEMS.map(item => `
         <label class="referral-checklist-item">
-            <input type="checkbox" name="interventionChecklist" value="${item.key}">
+            <input type="checkbox" name="interventionChecklist" value="${escapeHtml(item.key)}">
             <span>${escapeHtml(item.label)}</span>
         </label>
     `).join('') + `
@@ -978,7 +978,7 @@ function loadFollowUpHistory(referralId) {
                 <div style="background:#f9fafb; border-radius:8px; padding:12px 14px; margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <strong>${formatDate(row.follow_up_date)}</strong>
-                        <small class="text-muted">${intervalLabels[row.interval_label] || row.interval_label} (${row.interval_days}d) — next due ${formatDate(row.next_follow_up_date)}</small>
+                        <small class="text-muted">${escapeHtml(intervalLabels[row.interval_label] || row.interval_label)} (${escapeHtml(row.interval_days)}d) — next due ${formatDate(row.next_follow_up_date)}</small>
                     </div>
                     ${row.notes ? `<div>${escapeHtml(row.notes)}</div>` : ''}
                     <div style="margin-top:6px;"><small class="text-muted">Recorded by ${escapeHtml(row.counselor_name || 'Counselor')}</small></div>
@@ -1037,7 +1037,7 @@ function renderAcknowledgementChecklist() {
     const container = document.getElementById('ackChecklist');
     container.innerHTML = ACKNOWLEDGEMENT_CHECKLIST_ITEMS.map(item => `
         <label class="referral-checklist-item">
-            <input type="checkbox" name="ackChecklist" value="${item.key}">
+            <input type="checkbox" name="ackChecklist" value="${escapeHtml(item.key)}">
             <span>${escapeHtml(item.label)}</span>
         </label>
     `).join('');
@@ -1219,8 +1219,8 @@ function buildAssessmentFileRow(row) {
     // image itself 404s, so a missing/broken file still reads as
     // a clean row instead of a broken-image icon.
     const preview = isImage
-        ? `<a href="${row.url}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${row.url}" alt="${escapeHtml(row.fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${row.url}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="bi bi-file-earmark-image"></i> ${escapeHtml(row.fileName)}</a>`
-        : `<a href="${row.url}" target="_blank" rel="noopener" class="file-chip"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>`;
+        ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${escapeHtml(row.url)}" alt="${escapeHtml(row.fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="bi bi-file-earmark-image"></i> ${escapeHtml(row.fileName)}</a>`
+        : `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-chip"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>`;
     return `
         <div style="background:#f9fafb; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
             ${preview}
@@ -1480,7 +1480,7 @@ function loadConsentFiles(referralId) {
             container.innerHTML = rows.map(row => `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#f9fafb; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
                     <div>
-                        <a href="${row.url}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>
+                        <a href="${escapeHtml(row.url)}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>
                         <div><small class="text-muted">${((row.fileSize || 0) / 1024).toFixed(1)} KB • Uploaded by ${escapeHtml(row.uploadedBy || 'Unknown')} on ${formatDate(row.uploadedAt)}</small></div>
                     </div>
                 </div>
@@ -1532,14 +1532,7 @@ function submitConsentUpload(e) {
     });
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Stages 2 and 3 advance themselves through their own gate (the Stage 2
 // completion question, the Stage 3 student/parent agreement question)
@@ -1700,13 +1693,13 @@ function loadListView() {
 
     tbody.innerHTML = allReferrals.map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${urgencyBadge(referral.urgency)}</td>
-            <td>${referral.stage}/7</td>
+            <td>${escapeHtml(referral.stage)}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">View</button>
@@ -1742,13 +1735,13 @@ function applyStageFilter() {
 
     tbody.innerHTML = filtered.map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${urgencyBadge(referral.urgency)}</td>
-            <td>${referral.stage}/7</td>
+            <td>${escapeHtml(referral.stage)}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">View</button>

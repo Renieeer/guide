@@ -24,6 +24,9 @@ class SaveStudentController extends Controller
                     json_out(['success' => false, 'message' => 'StudentId is required']);
                 }
 
+                // Your own record, or staff of the student's school.
+                api_require_student($conn, $studentId, array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
+
                 $studentColumns = $this->getTableColumns($conn, 'student_table');
                 $studentIdColumn = $this->pickColumn($studentColumns, ['StudentId', 'id']);
 
@@ -155,7 +158,12 @@ class SaveStudentController extends Controller
             error_log('save-student.php POST received: StudentId=' . ($data['StudentId'] ?? 'NULL') . ', FirstName=' . ($data['FirstName'] ?? 'NULL'));
 
             // POST request - save/update student data
-            $studentId = isset($data['StudentId']) ? trim($data['StudentId']) : null;
+            // A student only ever saves their own record, whatever StudentId
+            // the form sends (typing another student's id into the form used to
+            // load and then overwrite that student's record).
+            api_require_role(['student']);
+            $data['StudentId'] = (string) api_user_id();
+            $studentId = $data['StudentId'];
 
             if (!$studentId) {
                 http_response_code(400);

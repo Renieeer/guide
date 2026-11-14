@@ -593,11 +593,7 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
         });
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 // Populate one person card with the selected student's data
 function populateStudentFromSearch(card, student) {

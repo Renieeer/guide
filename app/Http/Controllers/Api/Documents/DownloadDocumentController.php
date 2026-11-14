@@ -22,14 +22,25 @@ class DownloadDocumentController extends Controller
             }
 
             $documentId = (int)($_GET['document_id'] ?? 0);
-            $userType = trim((string)($_GET['user_type'] ?? ''));
-            $school = trim((string)($_GET['school_attended'] ?? ''));
+            // Role and school come from the logged-in account, not the URL.
+            $userType = api_role();
+            $school = api_school();
 
             if ($documentId <= 0 || $school === '') {
                 $this->send_json_error(400, 'document_id and school_attended are required');
             }
             if (strpos(strtolower($userType), 'coordinator') === false && strpos(strtolower($userType), 'counselor') === false) {
                 $this->send_json_error(403, 'Only guidance staff can view documents');
+            }
+
+            // Same defensive migration as upload-document: in a database where
+            // nothing was uploaded since files moved into the database there is
+            // no file_data column yet, and every download failed with a server
+            // error ("Unknown column 'file_data'"). Older rows then just have no
+            // stored bytes, which is handled below.
+            $col = $conn->query("SHOW COLUMNS FROM documents LIKE 'file_data'");
+            if ($col && $col->num_rows === 0) {
+                $conn->query("ALTER TABLE documents ADD COLUMN file_data LONGBLOB DEFAULT NULL");
             }
 
             $stmt = $conn->prepare('SELECT file_data, mime_type, original_filename, school_attended FROM documents WHERE document_id = ?');

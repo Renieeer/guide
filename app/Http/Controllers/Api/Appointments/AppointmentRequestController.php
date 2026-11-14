@@ -22,6 +22,12 @@ class AppointmentRequestController extends Controller
                 $school = trim((string)($_GET['school'] ?? ''));
                 $role = trim((string)($_GET['role'] ?? ''));
 
+                // Staff see their own school's requests (school and grade scope are
+                // pinned to the account by the legacy.session middleware). Students
+                // get the same list but see only their own requests in full; see
+                // the end of this branch.
+                api_require_role(array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
+
                 // Appointments made from a counseling case's "Appoint Students" action
                 // carry that case's case_uid — case_section pulls the Case Section
                 // chosen when that case was created (counselor_case_scenarios.section_name)
@@ -146,6 +152,25 @@ class AppointmentRequestController extends Controller
                     }));
                 }
 
+                // A student's schedule page only needs other students' requests to
+                // grey out taken time slots: date, time and status. Their names,
+                // reasons and notes used to be sent too.
+                if (api_role() === 'student') {
+                    $ownId = (string) api_user_id();
+                    $rows = array_map(function ($r) use ($ownId) {
+                        if ((string) $r['student_id'] === $ownId) {
+                            return $r;
+                        }
+                        return [
+                            'id' => '',
+                            'student_id' => '',
+                            'preferred_date' => $r['preferred_date'],
+                            'preferred_time' => $r['preferred_time'],
+                            'status' => $r['status'],
+                        ];
+                    }, $rows);
+                }
+
                 $this->send_json(200, ['success' => true, 'data' => $rows]);
             }
 
@@ -172,6 +197,24 @@ class AppointmentRequestController extends Controller
                 // counseling-session node — NULL for a plain self-service request.
                 $case_uid = trim((string)($payload['case_uid'] ?? ''));
                 $case_uid = $case_uid !== '' ? $case_uid : null;
+
+                // Students request for themselves; counselors/coordinators book a
+                // student of their own school straight in (approved). Which of the
+                // two this is used to come from a `role` field in the request, so a
+                // student could send role "counselor" and approve their own request.
+                api_require_role(array_merge(api_roles_guidance(), ['student']));
+                $school = api_school();
+                if (api_is(api_roles_guidance())) {
+                    $role = api_role();
+                    $counselor_id = api_user_id();
+                    if (!$this->staffMayHandleStudent($conn, (string) $student_id)) {
+                        $this->send_json(403, ['success' => false, 'message' => "This student isn't one you handle."]);
+                    }
+                } else {
+                    $role = 'student';
+                    $student_id = api_user_id();
+                    $student_name = api_user_name();
+                }
 
                 if ($student_id === 0 || $student_name === '' || $preferred_date === '' || $preferred_time === '' || $reason === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
@@ -286,6 +329,19 @@ class AppointmentRequestController extends Controller
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
                 }
 
+                // Approve / reject / propose a new time: guidance staff, for
+                // requests of students they handle; recorded under their own id.
+                api_require_role(api_roles_guidance());
+                $counselor_id = api_user_id();
+                $ownerStmt = $conn->prepare('SELECT student_id, school_attended FROM appointment_requests WHERE request_id = ?');
+                $ownerStmt->bind_param('s', $request_id);
+                $ownerStmt->execute();
+                $owner = $ownerStmt->get_result()->fetch_assoc();
+                $ownerStmt->close();
+                if (!$owner || !api_same_school($owner['school_attended'] ?? '') || !$this->staffMayHandleStudent($conn, (string) $owner['student_id'])) {
+                    $this->send_json(404, ['success' => false, 'message' => 'Request not found']);
+                }
+
                 $previousStatusStmt = $conn->prepare("SELECT status FROM appointment_requests WHERE request_id = ?");
                 $previousStatusStmt->bind_param('s', $request_id);
                 $previousStatusStmt->execute();
@@ -351,6 +407,23 @@ class AppointmentRequestController extends Controller
         $escaped = $conn->real_escape_string($tableName);
         $result = $conn->query("SHOW TABLES LIKE '{$escaped}'");
         return $result && $result->num_rows > 0;
+    }
+
+    // Same rule as the request list: the student is at the caller's school,
+    // and inside a grade-scoped counselor's grades, except a student whose
+    // grade isn't recorded yet (the list fails open on those too, so their
+    // requests don't get stuck with nobody able to handle them).
+    private function staffMayHandleStudent(mysqli $conn, string $studentId): bool {
+        $stmt = $conn->prepare('SELECT u.school_attended, s.Grade FROM users_tables u LEFT JOIN student_table s ON s.AccountID = u.AccountID WHERE u.AccountID = ?');
+        $stmt->bind_param('s', $studentId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$row || !api_same_school($row['school_attended'] ?? '')) {
+            return false;
+        }
+        $grade = trim((string) ($row['Grade'] ?? ''));
+        return $grade === '' || api_grade_ok($conn, $grade);
     }
 
     private function is_counselor_or_coordinator(string $role): bool {

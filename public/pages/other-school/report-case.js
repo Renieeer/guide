@@ -46,11 +46,11 @@ function renderGradeHeader() {
     if (theadRows.length < 2) return;
 
     theadRows[0].innerHTML = `<th>Category of Cases</th>${visibleGrades.map(g =>
-        `<th colspan="3" class="grade-col" data-grade="${g}" style="text-align: center;">Grade ${g}</th>`
+        `<th colspan="3" class="grade-col" data-grade="${escapeHtml(g)}" style="text-align: center;">Grade ${escapeHtml(g)}</th>`
     ).join('')}`;
 
     theadRows[1].innerHTML = `<th></th>${visibleGrades.map(g =>
-        `<th class="grade-col" data-grade="${g}">Male</th><th class="grade-col" data-grade="${g}">Female</th><th class="grade-col" data-grade="${g}">Total</th>`
+        `<th class="grade-col" data-grade="${escapeHtml(g)}">Male</th><th class="grade-col" data-grade="${escapeHtml(g)}">Female</th><th class="grade-col" data-grade="${escapeHtml(g)}">Total</th>`
     ).join('')}`;
 }
 
@@ -77,11 +77,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
 });
 
-function esc(value) {
-    const div = document.createElement('div');
-    div.textContent = value === null || value === undefined ? '' : String(value);
-    return div.innerHTML;
-}
+function esc(value) { return escapeHtml(value); }
 
 async function loadReportData() {
     try {
@@ -175,7 +171,7 @@ function buildCasesTable() {
 
         if (row.type === 'header') {
             const colCount = 1 + visibleGrades.length * 3;
-            tr.innerHTML = `<td colspan="${colCount}" style="font-weight: 700; background: #e2e8f0;">${row.label}</td>`;
+            tr.innerHTML = `<td colspan="${colCount}" style="font-weight: 700; background: #e2e8f0;">${escapeHtml(row.label)}</td>`;
             tbody.appendChild(tr);
             return;
         }
@@ -186,12 +182,12 @@ function buildCasesTable() {
         }
 
         const totals = rowTotals(row);
-        let html = `<td style="font-weight: 500;">${row.label}</td>`;
+        let html = `<td style="font-weight: 500;">${escapeHtml(row.label)}</td>`;
 
         visibleGrades.forEach(g => {
             const cell = totals[g] || { m: 0, f: 0 };
             const total = cell.m + cell.f;
-            html += `<td class="text-center" style="font-size: 0.9em;">${cell.m}</td><td class="text-center" style="font-size: 0.9em;">${cell.f}</td><td class="text-center">${total > 0 ? `<span class="badge badge-in-progress">${total}</span>` : '0'}</td>`;
+            html += `<td class="text-center" style="font-size: 0.9em;">${escapeHtml(cell.m)}</td><td class="text-center" style="font-size: 0.9em;">${escapeHtml(cell.f)}</td><td class="text-center">${total > 0 ? `<span class="badge badge-in-progress">${escapeHtml(total)}</span>` : '0'}</td>`;
         });
 
         tr.innerHTML = html;
@@ -389,16 +385,16 @@ function renderFilterResults() {
         <tr>
             <td>${esc(r.category)}</td>
             <td class="text-center">${esc(r.grade)}</td>
-            <td class="text-center">${r.male}</td>
-            <td class="text-center">${r.female}</td>
-            <td class="text-center">${r.total}</td>
+            <td class="text-center">${escapeHtml(r.male)}</td>
+            <td class="text-center">${escapeHtml(r.female)}</td>
+            <td class="text-center">${escapeHtml(r.total)}</td>
         </tr>
     `).join('') + `
         <tr style="font-weight: 700; background: #f1f5f9;">
             <td colspan="2">TOTAL</td>
-            <td class="text-center">${grandTotal.male}</td>
-            <td class="text-center">${grandTotal.female}</td>
-            <td class="text-center">${grandTotal.total}</td>
+            <td class="text-center">${escapeHtml(grandTotal.male)}</td>
+            <td class="text-center">${escapeHtml(grandTotal.female)}</td>
+            <td class="text-center">${escapeHtml(grandTotal.total)}</td>
         </tr>
     `;
 }
@@ -649,7 +645,7 @@ function setupEventListeners() {
 function populateCaseCategorySectionOptions() {
     const select = document.getElementById('newCategorySection');
     select.innerHTML = '<option value="">Select a section</option>' +
-        sections.map(s => `<option value="${s.sectionId}">${esc(s.sectionName)}</option>`).join('');
+        sections.map(s => `<option value="${escapeHtml(s.sectionId)}">${esc(s.sectionName)}</option>`).join('');
 }
 
 function openAddCaseCategoryModal() {

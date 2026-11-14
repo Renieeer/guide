@@ -22,6 +22,9 @@ class FeedbackController extends Controller
                 $action = trim((string)($_GET['action'] ?? ''));
 
                 if ($action === 'staff_list') {
+                    // Guidance staff: their own school's threads (school pinned
+                    // to the account by the legacy.session middleware).
+                    api_require_role(api_roles_guidance());
                     $school = trim((string)($_GET['school'] ?? ''));
                     if ($school === '') {
                         $this->send_json(400, ['success' => false, 'message' => 'school is required']);
@@ -67,10 +70,16 @@ class FeedbackController extends Controller
                 }
 
                 $studentId = trim((string)($_GET['student_id'] ?? ''));
+                // A student's own threads (whatever student_id is sent), or
+                // guidance staff looking at a student of their school.
+                if (api_role() === 'student') {
+                    $studentId = (string) api_user_id();
+                }
 
                 if ($studentId === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'student_id is required']);
                 }
+                api_require_student($conn, $studentId, array_merge(['student'], api_roles_guidance()));
 
                 if ($action === 'options') {
                     $school = trim((string)($_GET['school'] ?? ''));
@@ -212,9 +221,11 @@ class FeedbackController extends Controller
                     $this->send_json(400, ['success' => false, 'message' => 'Invalid JSON payload']);
                 }
 
-                $studentId = trim((string)($payload['student_id'] ?? ''));
-                $studentName = trim((string)($payload['student_name'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
+                // Students start threads, as themselves, at their own school.
+                api_require_role(['student']);
+                $studentId = (string) api_user_id();
+                $studentName = api_user_name();
+                $school = api_school();
                 $subjectType = trim((string)($payload['subject_type'] ?? ''));
                 $subjectId = trim((string)($payload['subject_id'] ?? ''));
                 $feedbackType = trim((string)($payload['feedback_type'] ?? ''));

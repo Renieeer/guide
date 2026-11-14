@@ -17,11 +17,7 @@ let shTimelinePage = 1;
 // activity timeline (optionally narrowed to one record type via shTypeFilter).
 let shActiveFolder = 'timeline';
 
-function esc(value) {
-    const div = document.createElement('div');
-    div.textContent = value === null || value === undefined ? '' : String(value);
-    return div.innerHTML;
-}
+function esc(value) { return escapeHtml(value); }
 
 function shFormatDate(value) {
     if (!value) return 'N/A';
@@ -280,7 +276,7 @@ function shRenderStudentList(term) {
             <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${shListPage <= 1 ? 'disabled' : ''}>
                 <i class="bi bi-chevron-left"></i> Prev
             </button>
-            <span class="sh-slist-page-info">Page ${shListPage} of ${totalPages}</span>
+            <span class="sh-slist-page-info">Page ${escapeHtml(shListPage)} of ${totalPages}</span>
             <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${shListPage >= totalPages ? 'disabled' : ''}>
                 Next <i class="bi bi-chevron-right"></i>
             </button>`;
@@ -366,8 +362,8 @@ function shRenderStudentHeader(student, counts) {
         { key: 'appointments', label: 'Appointments', icon: 'fa-calendar-day' }
     ];
     document.getElementById('shStatChips').innerHTML = chipDefs.map(c => `
-        <div class="sh-stat-chip" data-folder="${c.key}" role="button" tabindex="0">
-            <i class="fas ${c.icon}"></i> ${c.label}${c.key === 'personal' ? '' : ` <span class="sh-stat-count">${counts[c.key] || 0}</span>`}
+        <div class="sh-stat-chip" data-folder="${escapeHtml(c.key)}" role="button" tabindex="0">
+            <i class="fas ${escapeHtml(c.icon)}"></i> ${escapeHtml(c.label)}${c.key === 'personal' ? '' : ` <span class="sh-stat-count">${escapeHtml(counts[c.key] || 0)}</span>`}
         </div>
     `).join('');
 }
@@ -651,12 +647,12 @@ function shBuildTimelineEntry(record) {
 
     const dateObj = shParseDate(dateVal) || new Date(0);
     const dot = shTimelineDotColor(record.status);
-    const meta = `${esc(shFormatDateTime(dateVal))} &middot; <span class="badge ${shStatusBadgeClass(record.status)}">${esc(record.status)}</span>`;
+    const meta = `${esc(shFormatDateTime(dateVal))} &middot; <span class="badge ${escapeHtml(shStatusBadgeClass(record.status))}">${esc(record.status)}</span>`;
 
     const html = `
         <div class="sh-file sh-timeline-item">
             <div class="sh-file-row">
-                <span class="sh-timeline-dot" style="background:${dot}"></span>
+                <span class="sh-timeline-dot" style="background:${escapeHtml(dot)}"></span>
                 <div class="sh-file-main">
                     <div class="sh-timeline-text">${actorLine}</div>
                     <div class="sh-timeline-meta">${meta}</div>
@@ -937,7 +933,7 @@ function shBuildCaseThreadEntry(c, followUpsRaw, appointmentsRaw) {
                     <div class="sh-referral-row-dates">${esc(dateLabel)}</div>
                     <div class="sh-referral-row-summary">${summaryLabel}</div>
                 </div>
-                <span class="badge ${shStatusBadgeClass(c.status)} sh-case-thread-status">${esc(c.status)}</span>
+                <span class="badge ${escapeHtml(shStatusBadgeClass(c.status))} sh-case-thread-status">${esc(c.status)}</span>
                 <i class="fas fa-chevron-down sh-referral-thread-chevron"></i>
             </div>
             <div class="sh-referral-thread-body">
@@ -969,12 +965,12 @@ function shRenderStepFilePreview(url, fileName) {
     const ext = String(fileName || '').split('.').pop().toLowerCase();
     const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
     if (!isImage) {
-        return `<a href="${url}" target="_blank" rel="noopener" class="file-chip"><i class="fas fa-file-lines"></i> ${esc(fileName)}</a>`;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="file-chip"><i class="fas fa-file-lines"></i> ${esc(fileName)}</a>`;
     }
     // nextElementSibling is the .file-chip fallback right after this link —
     // swapped in if the image itself 404s (e.g. a missing file), so a
     // broken upload still reads as a clean row instead of a broken icon.
-    return `<a href="${url}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${url}" alt="${esc(fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${url}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="fas fa-image"></i> ${esc(fileName)}</a>`;
+    return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${escapeHtml(url)}" alt="${esc(fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="fas fa-image"></i> ${esc(fileName)}</a>`;
 }
 
 // linkedCase (optional) is the counseling case whose referral_code matches
@@ -1126,11 +1122,11 @@ function shBuildReferralThreadEntry(r, linkedCase) {
         const badgeClass = PILL_BADGE_CLASS[ev.pill] || 'badge-in-progress';
         return `
         <div class="sh-referral-step">
-            <span class="sh-referral-step-dot sh-dot-${badgeClass}"></span>
+            <span class="sh-referral-step-dot sh-dot-${escapeHtml(badgeClass)}"></span>
             <div class="sh-referral-step-body">
                 <div class="sh-referral-step-title">${esc(ev.title)}</div>
                 <div class="sh-referral-step-meta">${esc(shFormatDateTime(ev.rawDate))} &middot; ${esc(ev.by)}</div>
-                <div class="sh-referral-step-stage">Stage ${ev.stage} &middot; <span class="badge ${badgeClass}">${esc(ev.pill)}</span></div>
+                <div class="sh-referral-step-stage">Stage ${escapeHtml(ev.stage)} &middot; <span class="badge ${escapeHtml(badgeClass)}">${esc(ev.pill)}</span></div>
                 ${ev.note ? `<div class="sh-referral-step-note">${esc(ev.note)}</div>` : ''}
                 ${ev.fileUrl ? shRenderStepFilePreview(ev.fileUrl, ev.fileName) : ''}
             </div>
@@ -1174,7 +1170,7 @@ function shBuildReferralThreadEntry(r, linkedCase) {
                     <div class="sh-referral-row-dates">${esc(dateLabel)}</div>
                     <div class="sh-referral-row-summary">${summaryLabel}</div>
                 </div>
-                <span class="badge ${shStatusBadgeClass(r.status)} sh-case-thread-status">${esc(r.status)}</span>
+                <span class="badge ${escapeHtml(shStatusBadgeClass(r.status))} sh-case-thread-status">${esc(r.status)}</span>
                 <i class="fas fa-chevron-down sh-referral-thread-chevron"></i>
             </div>
             <div class="sh-referral-thread-body">
@@ -1299,7 +1295,7 @@ function shRenderTimeline(grouped, hasActiveFilters) {
                 <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${shTimelinePage <= 1 ? 'disabled' : ''}>
                     <i class="bi bi-chevron-left"></i> Prev
                 </button>
-                <span class="sh-slist-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${entries.length} &middot; Page ${shTimelinePage} of ${totalPages}</span>
+                <span class="sh-slist-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${entries.length} &middot; Page ${escapeHtml(shTimelinePage)} of ${totalPages}</span>
                 <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${shTimelinePage >= totalPages ? 'disabled' : ''}>
                     Next <i class="bi bi-chevron-right"></i>
                 </button>`;

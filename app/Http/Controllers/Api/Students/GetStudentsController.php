@@ -20,6 +20,17 @@ class GetStudentsController extends Controller
             $limit      = isset($_GET['limit'])  ? (int)$_GET['limit']  : 0;
             $gradeScope = grade_scope_to_list($_GET['grade_scope'] ?? '');
 
+            // Teachers and guidance staff get their own school (and grades) —
+            // school/grade_scope are pinned to the account by the
+            // legacy.session middleware. Students only ever get their own
+            // record (their information form looks themselves up by name);
+            // before, that name search returned any student's age, sex, birth
+            // date and email.
+            api_require_role(array_merge(api_roles_guidance(), ['teacher', 'student'], api_roles_sdo()));
+            if (!api_is_sdo() && $school === '') {
+                json_out(['success' => true, 'data' => [], 'count' => 0]);
+            }
+
             if ($school === '' && $search === '') {
                 http_response_code(400);
                 json_out(['success' => false, 'message' => 'school is required when no search query is provided']);
@@ -135,6 +146,12 @@ class GetStudentsController extends Controller
                 for ($i = 0; $i < 7; $i++) $params[] = $like;
             }
 
+            if (api_role() === 'student') {
+                $whereClauses[] = 's.AccountID = ?';
+                $types         .= 'i';
+                $params[]       = api_user_id();
+            }
+
             $whereSql   = count($whereClauses) ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
             $orderLimit = 'ORDER BY s.LastName ASC, s.FirstName ASC';
             if ($limit > 0) {
@@ -171,12 +188,6 @@ class GetStudentsController extends Controller
                 'count'   => count($students),
                 'school'  => $school,
             ];
-
-            // Temporary debug output — remove when done testing
-            if (!empty($_GET['debug'])) {
-                $response['debug_sql']    = $query;
-                $response['debug_params'] = $params;
-            }
 
             json_out($response);
 

@@ -24,7 +24,7 @@ class AvatarController extends Controller
             return response('', 400);
         }
 
-        $stmt = $conn->prepare('SELECT profile_image_data, profile_image_mime FROM users_tables WHERE AccountID = ?');
+        $stmt = $conn->prepare('SELECT profile_image_data, profile_image_mime, school_attended FROM users_tables WHERE AccountID = ?');
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
@@ -34,11 +34,21 @@ class AvatarController extends Controller
             return response('', 404);
         }
 
+        // Your own photo, or (for staff) photos of people at your school.
+        // Students can't load other students' photos.
+        if ($id !== api_user_id()) {
+            $staff = array_merge(api_roles_guidance(), ['teacher'], api_roles_sdo());
+            if (!api_is($staff) || !api_same_school($row['school_attended'] ?? '')) {
+                return response('', 403);
+            }
+        }
+
         // Long-lived — the URL's ?v= token changes on every new upload (see
         // fetch_profile() in api/profile.php), so a stale cache is never stale.
+        // "private": only the viewer's own browser may keep a copy.
         return response($row['profile_image_data'], 200, [
             'Content-Type' => ($row['profile_image_mime'] ?: 'application/octet-stream'),
-            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Cache-Control' => 'private, max-age=31536000, immutable',
         ]);
     }
 }

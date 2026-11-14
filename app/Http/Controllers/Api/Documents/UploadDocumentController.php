@@ -40,9 +40,11 @@ class UploadDocumentController extends Controller
             $typedStudentId = trim((string)($_POST['student_id'] ?? ''));
             $documentType = trim((string)($_POST['document_type'] ?? ''));
             $description = trim((string)($_POST['description'] ?? ''));
-            $userType = trim((string)($_POST['user_type'] ?? ''));
-            $school = trim((string)($_POST['school_attended'] ?? ''));
-            $uploaderId = trim((string)($_POST['user_id'] ?? ''));
+            // Role, school and uploader come from the logged-in account; they
+            // used to be form fields, so anyone could claim to be a counselor.
+            $userType = api_role();
+            $school = api_school();
+            $uploaderId = (string) api_user_id();
 
             if ($school === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'school_attended is required']);

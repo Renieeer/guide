@@ -16,6 +16,15 @@ class GetCaseSectionController extends Controller
             $input = json_decode(file_get_contents('php://input'), true);
             $action = is_array($input) ? ($input['action'] ?? '') : '';
 
+            // The section/category lists are the district's (SDO Case
+            // Management); coordinators may also add a category from their
+            // Report page. Anyone could change or delete them before.
+            if ($action === 'add_case_category') {
+                api_require_role(array_merge(api_roles_sdo(), api_roles_coordinator()));
+            } else {
+                api_require_role(api_roles_sdo());
+            }
+
             if ($action === 'add_section') {
                 $sectionName = $this->clean_label_text((string)($input['sectionName'] ?? ''));
 
@@ -300,6 +309,7 @@ class GetCaseSectionController extends Controller
         }
 
         $action = $_GET['action'] ?? 'sections';
+        api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
 
         /* ── GET SECTIONS + CATEGORIES ── */
         if ($action === 'sections') {

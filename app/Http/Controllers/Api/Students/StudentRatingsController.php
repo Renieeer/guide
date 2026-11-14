@@ -31,6 +31,15 @@ class StudentRatingsController extends Controller
             $counselorId = trim((string)($_GET['counselor_id'] ?? ''));
             $school = trim((string)($_GET['school'] ?? ''));
 
+            // Staff read their own school's ratings (school is pinned to the
+            // account by the legacy.session middleware); a student only ever
+            // reads their own.
+            api_require_role(array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
+            if (api_role() === 'student') {
+                $studentId = (string) api_user_id();
+                $counselorId = '';
+            }
+
             $sql = 'SELECT rating_id, student_account_id, student_name, school_attended, subject_type, subject_id,
                    subject_label, counselor_id, counselor_name, rating, comment, anonymous, is_read, created_at
             FROM student_ratings WHERE 1=1';
@@ -69,10 +78,13 @@ class StudentRatingsController extends Controller
             $result = $stmt->get_result();
             $rows = [];
             while ($row = $result->fetch_assoc()) {
+                // An anonymous rating never tells staff who wrote it (the page
+                // used to hide the name, but it was still in the response).
+                $hideAuthor = (bool)$row['anonymous'] && (string)$row['student_account_id'] !== (string) api_user_id();
                 $rows[] = [
                     'id' => $row['rating_id'],
-                    'studentId' => (string)$row['student_account_id'],
-                    'studentName' => $row['student_name'],
+                    'studentId' => $hideAuthor ? '' : (string)$row['student_account_id'],
+                    'studentName' => $hideAuthor ? '' : $row['student_name'],
                     'schoolAttended' => $row['school_attended'] ?? '',
                     'subjectType' => $row['subject_type'],
                     'subjectId' => $row['subject_id'],
@@ -94,9 +106,11 @@ class StudentRatingsController extends Controller
         if ($method === 'POST') {
             $body = $this->read_json_body();
 
-            $studentAccountId = (int)($body['studentId'] ?? 0);
-            $studentName = trim((string)($body['studentName'] ?? ''));
-            $school = trim((string)($body['schoolAttended'] ?? ''));
+            // Students rate their own sessions, under their own name and school.
+            api_require_role(['student']);
+            $studentAccountId = api_user_id();
+            $studentName = api_user_name();
+            $school = api_school();
             $subjectType = trim((string)($body['subjectType'] ?? ''));
             $subjectId = trim((string)($body['subjectId'] ?? ''));
             $subjectLabel = trim((string)($body['subjectLabel'] ?? ''));
@@ -151,6 +165,17 @@ class StudentRatingsController extends Controller
                 $this->send_json(400, ['success' => false, 'message' => 'id is required']);
             }
 
+            // Staff mark ratings of their own school as read.
+            api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
+            $own = $conn->prepare('SELECT school_attended FROM student_ratings WHERE rating_id = ?');
+            $own->bind_param('s', $ratingId);
+            $own->execute();
+            $ownRow = $own->get_result()->fetch_assoc();
+            $own->close();
+            if (!$ownRow || !api_same_school($ownRow['school_attended'] ?? '')) {
+                $this->send_json(404, ['success' => false, 'message' => 'Rating not found']);
+            }
+
             $stmt = $conn->prepare('UPDATE student_ratings SET is_read = 1 WHERE rating_id = ?');
             if (!$stmt) {
                 $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
@@ -166,7 +191,10 @@ class StudentRatingsController extends Controller
 
         if ($method === 'DELETE') {
             $ratingId = trim((string)($_GET['id'] ?? ''));
-            $studentId = trim((string)($_GET['student_id'] ?? ''));
+            // Students delete their own ratings; the owner used to be whatever
+            // student_id the page sent.
+            api_require_role(['student']);
+            $studentId = (string) api_user_id();
             if ($ratingId === '' || $studentId === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'id and student_id are required']);
             }

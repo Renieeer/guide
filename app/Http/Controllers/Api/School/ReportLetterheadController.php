@@ -28,6 +28,11 @@ class ReportLetterheadController extends Controller
         try {
             $this->ensure_report_letterhead_table($conn);
 
+            // Report letterheads are for staff. Reading one isn't sensitive; saving
+            // or removing is limited to your own school's (the SDO: any, including
+            // the district default) — anyone could replace any school's before.
+            api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
+
             if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $action = $_GET['action'] ?? 'get';
 
@@ -81,11 +86,12 @@ class ReportLetterheadController extends Controller
                     $headerPct = (float)($_POST['header_pct'] ?? 0);
                     $footerPct = (float)($_POST['footer_pct'] ?? 0);
                     $originalFilename = trim((string)($_POST['original_filename'] ?? ''));
-                    $updatedById = ctype_digit((string)($_POST['updated_by_id'] ?? '')) ? (int)$_POST['updated_by_id'] : null;
+                    $updatedById = api_user_id();
 
                     if ($schoolCode === '') {
                         $this->send_json(400, ['success' => false, 'message' => 'school_code is required']);
                     }
+                    $this->requireOwnLetterhead($conn, $schoolCode);
                     if ($headerRatio <= 0 || $footerRatio <= 0) {
                         $this->send_json(400, ['success' => false, 'message' => 'header_ratio and footer_ratio must be positive']);
                     }
@@ -151,6 +157,7 @@ class ReportLetterheadController extends Controller
                     if ($schoolCode === '') {
                         $this->send_json(400, ['success' => false, 'message' => 'school_code is required']);
                     }
+                    $this->requireOwnLetterhead($conn, $schoolCode);
 
                     $stmt = $conn->prepare('DELETE FROM report_letterhead WHERE school_code = ?');
                     $stmt->bind_param('s', $schoolCode);
@@ -170,6 +177,23 @@ class ReportLetterheadController extends Controller
             throw $halt;
         } catch (Throwable $e) {
             $this->send_json(500, ['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+
+    // Staff change their own school's letterhead only (looked up by the school
+    // name on their account); the SDO any school's or the district default.
+    private function requireOwnLetterhead(mysqli $conn, string $schoolCode): void {
+        if (api_is_sdo()) {
+            return;
+        }
+        $stmt = $conn->prepare('SELECT school_code FROM schools WHERE school_name = ? LIMIT 1');
+        $school = api_school();
+        $stmt->bind_param('s', $school);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$row || strcasecmp((string) $row['school_code'], $schoolCode) !== 0) {
+            $this->send_json(403, ['success' => false, 'message' => "You can only change your own school's letterhead."]);
         }
     }
 

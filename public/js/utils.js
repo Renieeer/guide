@@ -107,6 +107,33 @@ function formatDate(date) {
     });
 }
 
+// Makes text safe to put into a page's HTML, as element content or inside
+// a quoted attribute: & < > " ' become entities, so text people typed (names,
+// reasons, notes, messages) is always shown as text and never run as code.
+// null/undefined become ''; everything else, including 0, is kept.
+// This is the one shared copy: pages used to carry their own, and some of
+// those dropped 0 or left quotes unescaped (unsafe inside attributes).
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// For text placed inside a quoted JavaScript string inside an HTML event
+// attribute, e.g. onclick="openEditModal('${jsStr(name)}')". escapeHtml()
+// alone isn't enough there: the browser turns &#39; back into ' before it
+// runs the handler, so a name like O'Brien ended the string early (breaking
+// the button), and crafted text could run code. JSON.stringify escapes it
+// for JavaScript first, then escapeHtml() for the attribute.
+function jsStr(value) {
+    if (value === null || value === undefined) return '';
+    return escapeHtml(JSON.stringify(String(value)).slice(1, -1).replace(/'/g, "\\'"));
+}
+
 // Generate unique ID
 function generateId() {
     return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -220,7 +247,7 @@ function createBadge(status) {
         'completed': 'badge-completed',
         'rejected': 'badge-rejected'
     };
-    return `<span class="badge ${badgeClasses[status] || 'badge-pending'}">${status}</span>`;
+    return `<span class="badge ${escapeHtml(badgeClasses[status] || 'badge-pending')}">${escapeHtml(status)}</span>`;
 }
 
 // Renders a small Offender/Victim tag for a referral's referral_role (see
@@ -231,7 +258,7 @@ function referralRoleBadge(role) {
     const normalized = String(role || '').toLowerCase();
     if (normalized !== 'offender' && normalized !== 'victim') return '';
     const label = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-    return `<span class="badge badge-${normalized}">${label}</span>`;
+    return `<span class="badge badge-${escapeHtml(normalized)}">${escapeHtml(label)}</span>`;
 }
 
 // A referral's urgency as a colored badge — green / amber / red, each with
@@ -254,14 +281,14 @@ function urgencyBadge(urgency) {
         const safe = label.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         return `<span class="badge badge-urgency badge-urgency-normal">${safe}</span>`;
     }
-    return `<span class="badge badge-urgency badge-urgency-${info.tone}" title="${info.label} urgency"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
+    return `<span class="badge badge-urgency badge-urgency-${escapeHtml(info.tone)}" title="${escapeHtml(info.label)} urgency"><i class="bi ${escapeHtml(info.icon)}"></i> ${escapeHtml(info.label)}</span>`;
 }
 
 // Create action buttons
 function createActionButtons(id, canEdit = true, canDelete = true) {
     let html = '';
-    if (canEdit) html += `<button class="btn btn-sm btn-primary" onclick="editItem('${id}')">Edit</button>`;
-    if (canDelete) html += `<button class="btn btn-sm btn-danger" onclick="deleteItem('${id}')">Delete</button>`;
+    if (canEdit) html += `<button class="btn btn-sm btn-primary" onclick="editItem('${jsStr(id)}')">Edit</button>`;
+    if (canDelete) html += `<button class="btn btn-sm btn-danger" onclick="deleteItem('${jsStr(id)}')">Delete</button>`;
     return html;
 }
 
@@ -295,8 +322,8 @@ function createStageIndicator(currentStage) {
         const isCompleted = stage.id < currentStage;
         const stageClass = isActive ? 'active' : (isCompleted ? 'completed' : '');
         html += `<div class="stage ${stageClass}">
-                    <div class="stage-circle" data-stage="${stage.id}">${stage.id}</div>
-                    <div class="stage-name">${stage.name}</div>
+                    <div class="stage-circle" data-stage="${escapeHtml(stage.id)}">${escapeHtml(stage.id)}</div>
+                    <div class="stage-name">${escapeHtml(stage.name)}</div>
                  </div>`;
     });
     html += '</div>';
@@ -414,7 +441,7 @@ function setUserInfo() {
         if (avatarEl && typeof user.name === 'string') {
             const photoUrl = displayAvatarUrl(user);
             if (photoUrl) {
-                avatarEl.innerHTML = `<img src="${photoUrl}" alt="">`;
+                avatarEl.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="">`;
             } else {
                 avatarEl.textContent = userInitials(user);
             }
@@ -479,7 +506,7 @@ function renderSidebarAvatar() {
     const photoUrl = displayAvatarUrl(user);
 
     if (photoUrl) {
-        el.innerHTML = `<img src="${photoUrl}" alt="">`;
+        el.innerHTML = `<img src="${escapeHtml(photoUrl)}" alt="">`;
     } else {
         el.textContent = userInitials(user);
     }

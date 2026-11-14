@@ -300,7 +300,7 @@ function renderMyRatingsHistory(myRatings) {
             <p class="review-comment">${escapeHtml(r.comment)}</p>
             <div class="review-card-footer">
                 ${r.anonymous ? '<span class="badge badge-empty">Sent Anonymously</span>' : '<span></span>'}
-                <button type="button" class="btn btn-sm btn-danger" onclick="deleteRating('${r.id}')">
+                <button type="button" class="btn btn-sm btn-danger" onclick="deleteRating('${jsStr(r.id)}')">
                     <i class="bi bi-trash"></i> Delete
                 </button>
             </div>
@@ -316,12 +316,6 @@ function starsHtml(rating) {
     return html;
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value ?? '';
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
-function escapeAttr(value) {
-    return String(value ?? '').replace(/"/g, '&quot;');
-}
+function escapeAttr(value) { return escapeHtml(value); }

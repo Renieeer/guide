@@ -55,7 +55,11 @@ document.getElementById('loginForm')?.addEventListener('submit', async function(
             },
             body: JSON.stringify({
                 email: email,
-                password: password
+                password: password,
+                // Teacher accounts sign in on staff-login, everyone else
+                // here. The server refuses the wrong page before logging in
+                // (see LoginController for why it can't be done after).
+                portal: document.body.getAttribute('data-portal') === 'staff' ? 'staff' : 'main'
             })
         });
 
@@ -83,20 +87,6 @@ document.getElementById('loginForm')?.addEventListener('submit', async function(
                 // points at it. See userAvatarUrl() in js/utils.js.
                 profile_image: data.user.profileImage || null
             };
-
-            // Only teacher accounts sign in on staff-login.php — everyone
-            // else, including coordinator/counselor/combined accounts,
-            // signs in on the regular login.php.
-            const STAFF_LOGIN_ROLES = ['teacher'];
-            const portalType = document.body.getAttribute('data-portal');
-            if (portalType === 'staff' && !STAFF_LOGIN_ROLES.includes(userData.role)) {
-                showError('This is the teacher login. Please use the regular Login page for your account.');
-                return;
-            }
-            if (portalType !== 'staff' && STAFF_LOGIN_ROLES.includes(userData.role)) {
-                showError('Teacher accounts should use the Staff Login page.');
-                return;
-            }
 
             // Store in sessionStorage for current session
             sessionStorage.setItem('user', JSON.stringify(userData));

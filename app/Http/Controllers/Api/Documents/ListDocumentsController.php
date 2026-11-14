@@ -24,7 +24,10 @@ class ListDocumentsController extends Controller
             }
 
             $typedStudentId = trim((string)($_GET['student_id'] ?? ''));
-            $school = trim((string)($_GET['school_attended'] ?? ''));
+            // Guidance staff list their own school's documents (students could
+            // list them before: there was no role check at all).
+            api_require_role(api_roles_guidance());
+            $school = api_school();
 
             if ($school === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'school_attended is required']);

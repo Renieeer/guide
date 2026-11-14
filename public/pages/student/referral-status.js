@@ -85,11 +85,11 @@ function displayReferrals(referrals) {
     tbody.innerHTML = referrals.map(referral => `
         <tr>
             <td>${formatDate(referral.date_submitted)}</td>
-            <td>${referral.referral_reason || referral.reason}</td>
-            <td>${referral.teacher_name || 'Unknown'}</td>
+            <td>${escapeHtml(referral.referral_reason || referral.reason)}</td>
+            <td>${escapeHtml(referral.teacher_name || 'Unknown')}</td>
             <td>
-                <span class="badge" style="background: ${getStatusColor(referral.status)}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85em;">
-                    ${referral.status || 'pending'}
+                <span class="badge" style="background: ${escapeHtml(getStatusColor(referral.status))}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.85em;">
+                    ${escapeHtml(referral.status || 'pending')}
                 </span>
             </td>
             <td>
@@ -128,21 +128,21 @@ function displayProgressOverview(referrals) {
         const progress = (currentStage / totalStages) * 100;
         
         return `
-            <div data-referral-id="${referral.id}" style="margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid ${getStatusColor(referral.status)};">
+            <div data-referral-id="${escapeHtml(referral.id)}" style="margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid ${escapeHtml(getStatusColor(referral.status))};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
                     <div>
-                        <strong style="display: block; font-size: 1em; color: #1f2937; margin-bottom: 4px;">${referral.referral_reason}</strong>
-                        <small style="color: #6b7280;">Submitted: ${formatDate(referral.date_submitted)} • By: ${referral.teacher_name || 'Unknown'}</small>
+                        <strong style="display: block; font-size: 1em; color: #1f2937; margin-bottom: 4px;">${escapeHtml(referral.referral_reason)}</strong>
+                        <small style="color: #6b7280;">Submitted: ${formatDate(referral.date_submitted)} • By: ${escapeHtml(referral.teacher_name || 'Unknown')}</small>
                     </div>
-                    <span class="badge" style="background: ${getStatusColor(referral.status)}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.8em; white-space: nowrap;">
-                        ${referral.status || 'pending'}
+                    <span class="badge" style="background: ${escapeHtml(getStatusColor(referral.status))}; color: white; padding: 6px 12px; border-radius: 20px; font-size: 0.8em; white-space: nowrap;">
+                        ${escapeHtml(referral.status || 'pending')}
                     </span>
                 </div>
                 
                 <!-- Progress Bar -->
                 <div style="margin-bottom: 10px;">
                     <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                        <div style="height: 100%; width: ${progress}%; background: ${getStatusColor(referral.status)}; transition: width 0.3s ease;"></div>
+                        <div style="height: 100%; width: ${progress}%; background: ${escapeHtml(getStatusColor(referral.status))}; transition: width 0.3s ease;"></div>
                     </div>
                 </div>
                 
@@ -158,7 +158,7 @@ function displayProgressOverview(referrals) {
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                                background: ${stage <= currentStage ? getStatusColor(referral.status) : '#e5e7eb'};
+                                background: ${escapeHtml(stage <= currentStage ? getStatusColor(referral.status) : '#e5e7eb')};
                                 color: white;
                                 font-weight: bold;
                                 font-size: 12px;
@@ -166,7 +166,7 @@ function displayProgressOverview(referrals) {
                                 ${stage <= currentStage ? '✓' : stage}
                             </div>
                             <small style="color: ${stage <= currentStage ? '#1f2937' : '#9ca3af'}; font-size: 11px; display: block; max-width: 50px; margin: 0 auto; word-break: break-word;">
-                                ${stageLabels[stage] || 'Stage ' + stage}
+                                ${escapeHtml(stageLabels[stage] || 'Stage ' + stage)}
                             </small>
                         </div>
                     `).join('')}

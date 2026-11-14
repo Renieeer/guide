@@ -144,8 +144,8 @@ function loadAssessmentFiles(referralId) {
                 // image itself 404s, so a missing/broken file still reads as
                 // a clean row instead of a broken-image icon.
                 const preview = isImage
-                    ? `<a href="${row.url}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${row.url}" alt="${escapeHtml(row.fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${row.url}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="bi bi-file-earmark-image"></i> ${escapeHtml(row.fileName)}</a>`
-                    : `<a href="${row.url}" target="_blank" rel="noopener" class="file-chip"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>`;
+                    ? `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-thumb-link"><img src="${escapeHtml(row.url)}" alt="${escapeHtml(row.fileName)}" class="file-thumb" onerror="this.closest('a').style.display='none'; this.closest('a').nextElementSibling.style.display='inline-flex';"></a><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-chip" style="display:none;"><i class="bi bi-file-earmark-image"></i> ${escapeHtml(row.fileName)}</a>`
+                    : `<a href="${escapeHtml(row.url)}" target="_blank" rel="noopener" class="file-chip"><i class="bi bi-file-earmark-check"></i> ${escapeHtml(row.fileName)}</a>`;
                 return `
                 <div style="background:#f9fafb; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
                     ${preview}
@@ -159,14 +159,7 @@ function loadAssessmentFiles(referralId) {
         });
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 function loadStageProgress() {
     const container = document.getElementById('stageProgressContainer');
@@ -287,14 +280,14 @@ function loadReferralsList() {
 
     tbody.innerHTML = allReferrals.map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
-            <td>${referral.teacher_name || 'Unknown'}</td>
+            <td>${escapeHtml(referral.teacher_name || 'Unknown')}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${urgencyBadge(referral.urgency)}</td>
-            <td>${referral.stage}/7</td>
+            <td>${escapeHtml(referral.stage)}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">Review</button>
@@ -340,14 +333,14 @@ function applyFilters() {
 
     tbody.innerHTML = filtered.map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${escapeHtml(referral.referral_reason)}</td>
-            <td>${referral.teacher_name || 'Unknown'}</td>
+            <td>${escapeHtml(referral.teacher_name || 'Unknown')}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${urgencyBadge(referral.urgency)}</td>
-            <td>${referral.stage}/7</td>
+            <td>${escapeHtml(referral.stage)}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">Review</button>

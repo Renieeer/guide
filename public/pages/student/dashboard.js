@@ -103,12 +103,12 @@ function displayReferralProgress(referrals) {
 
     preview.innerHTML = `
         <div style="margin-bottom: 8px; text-align: center;">
-            <small style="color: #6b7280; display: block; margin-bottom: 8px;">Latest: ${latest.referral_reason || latest.reason || 'Referral'}</small>
+            <small style="color: #6b7280; display: block; margin-bottom: 8px;">Latest: ${escapeHtml(latest.referral_reason || latest.reason || 'Referral')}</small>
             <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-                <div style="height: 100%; width: ${progress}%; background: ${statusColor}; transition: width 0.3s ease;"></div>
+                <div style="height: 100%; width: ${progress}%; background: ${escapeHtml(statusColor)}; transition: width 0.3s ease;"></div>
             </div>
             <small style="color: #6b7280; display: block;">
-                <strong>Stage ${currentStage}/7</strong> - ${stageLabels[currentStage] || 'In Progress'}
+                <strong>Stage ${currentStage}/7</strong> - ${escapeHtml(stageLabels[currentStage] || 'In Progress')}
             </small>
         </div>
     `;
@@ -124,11 +124,7 @@ function getProgressColor(status) {
     return colors[status?.toLowerCase?.()] || colors[status] || '#6b7280';
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value === null || value === undefined ? '' : String(value);
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 function formatActivityDate(value) {
     if (!value) return '';
@@ -193,8 +189,8 @@ function loadActivityFeed(data) {
 
     feed.innerHTML = items.slice(0, 8).map(item => `
         <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 4px; border-bottom: 1px solid #f1f5f9;">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${item.color}1a; color: ${item.color}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <i class="bi ${item.icon}"></i>
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${escapeHtml(item.color)}1a; color: ${escapeHtml(item.color)}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="bi ${escapeHtml(item.icon)}"></i>
             </div>
             <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 600; color: #1e293b; font-size: 14px;">${escapeHtml(item.title)}</div>

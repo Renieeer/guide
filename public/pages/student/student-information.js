@@ -1776,7 +1776,7 @@ async function fetchAddressOptions(level, params = {}) {
             if (currentStep === totalSteps) {
                 const label = isUpdateMode ? 'Update Information' : 'Submit Form';
                 const icon  = isUpdateMode ? 'fa-rotate' : 'fa-save';
-                nextBtn.innerHTML = `<i class="fas ${icon}"></i> ${label}`;
+                nextBtn.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(label)}`;
                 nextBtn.className = 'btn-nav btn-submit';
                 nextBtn.onclick = function(e) { 
                     e.preventDefault();
@@ -1981,7 +1981,7 @@ async function fetchAddressOptions(level, params = {}) {
             max-width: 360px;
         `;
         const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
-        el.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+        el.innerHTML = `<i class="fas ${escapeHtml(icons[type] || icons.info)}"></i> ${escapeHtml(message)}`;
         document.body.appendChild(el);
         setTimeout(() => { el.style.animation = 'ntfOut 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, 3500);
     }
@@ -2005,8 +2005,8 @@ async function fetchAddressOptions(level, params = {}) {
         `;
 
         dialog.innerHTML = `
-            <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #1f2937; font-weight: 700;">${title}</h2>
-            <p style="margin: 0 0 28px 0; color: #6b7280; font-size: 15px; line-height: 1.6;">${message}</p>
+            <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #1f2937; font-weight: 700;">${escapeHtml(title)}</h2>
+            <p style="margin: 0 0 28px 0; color: #6b7280; font-size: 15px; line-height: 1.6;">${escapeHtml(message)}</p>
             <div style="display: flex; gap: 12px; justify-content: flex-end;">
                 <button id="confirmCancel" style="
                     padding: 10px 20px; border: 1px solid #d8e0ea; background: white;
@@ -2088,19 +2088,19 @@ async function fetchAddressOptions(level, params = {}) {
             <div class="field-grid education-grid">
                 <div class="field-group">
                     <label>Grade Level</label>
-                    <input type="text" name="education[${i}][GradeLevel]" placeholder="e.g., Grade 7" value="${data.GradeLevel || ''}">
+                    <input type="text" name="education[${i}][GradeLevel]" placeholder="e.g., Grade 7" value="${escapeHtml(data.GradeLevel || '')}">
                 </div>
                 <div class="field-group">
                     <label>School Attended</label>
-                    <input type="text" name="education[${i}][SchoolAttended]" value="${data.SchoolAttended || ''}">
+                    <input type="text" name="education[${i}][SchoolAttended]" value="${escapeHtml(data.SchoolAttended || '')}">
                 </div>
                 <div class="field-group">
                     <label>Inclusive Years</label>
-                    <input type="text" name="education[${i}][InclusiveYes]" placeholder="e.g., 2020–2024" value="${data.InclusiveYes || ''}">
+                    <input type="text" name="education[${i}][InclusiveYes]" placeholder="e.g., 2020–2024" value="${escapeHtml(data.InclusiveYes || '')}">
                 </div>
                 <div class="field-group education-plan-field">
                     <label>Plan After High School</label>
-                    <textarea name="education[${i}][PlaceAndSchool]">${data.PlaceAndSchool || ''}</textarea>
+                    <textarea name="education[${i}][PlaceAndSchool]">${escapeHtml(data.PlaceAndSchool || '')}</textarea>
                 </div>
             </div>`;
         return div;
@@ -2127,11 +2127,11 @@ async function fetchAddressOptions(level, params = {}) {
             <div class="field-grid organization-grid">
                 <div class="field-group">
                     <label>Organization Name</label>
-                    <input type="text" name="organization[${i}][OrganizationName]" value="${data.OrganizationName || ''}">
+                    <input type="text" name="organization[${i}][OrganizationName]" value="${escapeHtml(data.OrganizationName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Position / Title</label>
-                    <input type="text" name="organization[${i}][PositionTitle]" value="${data.PositionTitle || ''}">
+                    <input type="text" name="organization[${i}][PositionTitle]" value="${escapeHtml(data.PositionTitle || '')}">
                 </div>
                 <div class="field-group">
                     <label>In Campus?</label>
@@ -2166,31 +2166,31 @@ async function fetchAddressOptions(level, params = {}) {
             <div class="sibling-row">
                 <div class="field-group">
                     <label>First Name</label>
-                    <input type="text" name="sibling[${i}][FirstName]" value="${data.FirstName || ''}">
+                    <input type="text" name="sibling[${i}][FirstName]" value="${escapeHtml(data.FirstName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Middle Name</label>
-                    <input type="text" name="sibling[${i}][MiddleName]" value="${data.MiddleName || ''}">
+                    <input type="text" name="sibling[${i}][MiddleName]" value="${escapeHtml(data.MiddleName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Last Name</label>
-                    <input type="text" name="sibling[${i}][LastName]" value="${data.LastName || ''}">
+                    <input type="text" name="sibling[${i}][LastName]" value="${escapeHtml(data.LastName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Nickname</label>
-                    <input type="text" name="sibling[${i}][NickName]" value="${data.NickName || ''}">
+                    <input type="text" name="sibling[${i}][NickName]" value="${escapeHtml(data.NickName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Age</label>
-                    <input type="number" name="sibling[${i}][Age]" value="${data.Age || ''}">
+                    <input type="number" name="sibling[${i}][Age]" value="${escapeHtml(data.Age || '')}">
                 </div>
                 <div class="field-group">
                     <label>Birth Order</label>
-                    <input type="text" name="sibling[${i}][BirthOrder]" placeholder="e.g., 1st, 2nd" value="${data.BirthOrder || ''}">
+                    <input type="text" name="sibling[${i}][BirthOrder]" placeholder="e.g., 1st, 2nd" value="${escapeHtml(data.BirthOrder || '')}">
                 </div>
                 <div class="field-group">
                     <label>School ID</label>
-                    <input type="text" name="sibling[${i}][SchoolId]" value="${data.SchoolId || ''}">
+                    <input type="text" name="sibling[${i}][SchoolId]" value="${escapeHtml(data.SchoolId || '')}">
                 </div>
             </div>`;
         return div;
@@ -2225,15 +2225,15 @@ async function fetchAddressOptions(level, params = {}) {
                 </div>
                 <div class="field-group">
                     <label>First Name</label>
-                    <input type="text" name="friend[${i}][FirstName]" value="${data.FirstName || ''}">
+                    <input type="text" name="friend[${i}][FirstName]" value="${escapeHtml(data.FirstName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Middle Name</label>
-                    <input type="text" name="friend[${i}][MiddleName]" value="${data.MiddleName || ''}">
+                    <input type="text" name="friend[${i}][MiddleName]" value="${escapeHtml(data.MiddleName || '')}">
                 </div>
                 <div class="field-group">
                     <label>Last Name</label>
-                    <input type="text" name="friend[${i}][LastName]" value="${data.LastName || ''}">
+                    <input type="text" name="friend[${i}][LastName]" value="${escapeHtml(data.LastName || '')}">
                 </div>
             </div>`;
         return div;

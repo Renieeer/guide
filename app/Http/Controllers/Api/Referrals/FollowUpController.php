@@ -23,6 +23,7 @@ class FollowUpController extends Controller
             if ($caseUid === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'case_uid is required']);
             }
+            $this->requireOwnSchoolCase($conn, $caseUid, array_merge(api_roles_guidance(), api_roles_sdo()));
 
             $stmt = $conn->prepare('
         SELECT fu.Follow_id AS follow_up_id, fu.Title, fu.category_id, fu.category_name,
@@ -71,8 +72,10 @@ class FollowUpController extends Controller
             $categoryId    = trim((string)($body['category_id'] ?? ''));
             $categoryName  = trim((string)($body['category_name'] ?? ''));
             $followUpDate  = trim((string)($body['follow_up_date'] ?? ''));
-            $counselorId   = trim((string)($body['counselor_id'] ?? ''));
-            $counselorName = trim((string)($body['counselor_name'] ?? ''));
+            // Counselors add to their own school's cases, under their own name.
+            $this->requireOwnSchoolCase($conn, $caseUid, api_roles_counselor());
+            $counselorId   = (string) api_user_id();
+            $counselorName = api_user_name();
             $notes         = is_array($body['notes'] ?? null) ? $body['notes'] : [];
 
             // A counseling session is a scheduled meeting, not a behavior
@@ -147,6 +150,19 @@ class FollowUpController extends Controller
         }
 
         $this->send_json(405, ['success' => false, 'message' => 'Method not allowed']);
+    }
+
+    // A counseling case belongs to the school it was opened at.
+    private function requireOwnSchoolCase(mysqli $conn, string $caseUid, array $roles): void {
+        api_require_role($roles);
+        $stmt = $conn->prepare('SELECT school_attended FROM counselor_case_scenarios WHERE case_uid = ?');
+        $stmt->bind_param('s', $caseUid);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$row || !api_same_school($row['school_attended'] ?? '')) {
+            $this->send_json(404, ['success' => false, 'message' => 'Case not found.']);
+        }
     }
 
     private function send_json(int $statusCode, array $payload): void {

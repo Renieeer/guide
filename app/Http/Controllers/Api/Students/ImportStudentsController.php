@@ -45,8 +45,12 @@ class ImportStudentsController extends Controller
                 $this->send_json(400, ['success' => false, 'message' => 'Invalid JSON payload']);
             }
 
+            // Coordinators create student accounts for their own school only
+            // (before, anyone could create accounts at any school they named).
+            api_require_role(api_roles_coordinator());
+
             $action = trim((string)($payload['action'] ?? ''));
-            $school = trim((string)($payload['school'] ?? ''));
+            $school = api_school();
             $rows = is_array($payload['rows'] ?? null) ? $payload['rows'] : [];
 
             if ($school === '') {

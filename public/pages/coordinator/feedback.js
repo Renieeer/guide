@@ -50,12 +50,12 @@ function loadFeedbackHistory() {
     tbody.innerHTML = userFeedbacks.reverse().map(feedback => `
         <tr>
             <td>${formatDate(feedback.date)}</td>
-            <td>${feedback.type}</td>
-            <td>${feedback.title}</td>
+            <td>${escapeHtml(feedback.type)}</td>
+            <td>${escapeHtml(feedback.title)}</td>
             <td>${createBadge(feedback.status)}</td>
-            <td>${feedback.response ? feedback.response : '-'}</td>
+            <td>${escapeHtml(feedback.response ? feedback.response : '-')}</td>
             <td>
-                <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${feedback.id}')">Delete</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${jsStr(feedback.id)}')">Delete</button>
             </td>
         </tr>
     `).join('');

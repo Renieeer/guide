@@ -87,7 +87,7 @@ function renderSectionOptions() {
         const select = document.getElementById(id);
         const currentValue = select.value;
         select.innerHTML = '<option value="">Select a section</option>' +
-            caseSections.map(s => `<option value="${s.SectionID}">${escapeHtml(s.SectionName)}</option>`).join('');
+            caseSections.map(s => `<option value="${escapeHtml(s.SectionID)}">${escapeHtml(s.SectionName)}</option>`).join('');
         if (currentValue) select.value = currentValue;
     });
 }
@@ -247,10 +247,10 @@ function renderCategories() {
                 <td><strong>${escapeHtml(cat.CategoryName)}</strong></td>
                 <td class="text-center">
                     <div class="action-buttons" style="justify-content: center;">
-                        <button type="button" class="btn-edit" data-edit-id="${cat.CaseId}">
+                        <button type="button" class="btn-edit" data-edit-id="${escapeHtml(cat.CaseId)}">
                             <i class="bi bi-pencil-square"></i> Edit
                         </button>
-                        <button type="button" class="btn btn-danger btn-sm" data-delete-id="${cat.CaseId}" data-delete-name="${escapeHtml(cat.CategoryName)}">
+                        <button type="button" class="btn btn-danger btn-sm" data-delete-id="${escapeHtml(cat.CaseId)}" data-delete-name="${escapeHtml(cat.CategoryName)}">
                             <i class="bi bi-trash"></i> Delete
                         </button>
                     </div>
@@ -274,19 +274,12 @@ function renderCategoriesPagination(totalFiltered, startIdx, endIdx, totalPages)
         <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${categoryCurrentPage <= 1 ? 'disabled' : ''}>
             <i class="bi bi-chevron-left"></i> Prev
         </button>
-        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${totalFiltered} &middot; Page ${categoryCurrentPage} of ${totalPages}</span>
+        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${escapeHtml(totalFiltered)} &middot; Page ${categoryCurrentPage} of ${totalPages}</span>
         <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${categoryCurrentPage >= totalPages ? 'disabled' : ''}>
             Next <i class="bi bi-chevron-right"></i>
         </button>`;
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 document.addEventListener('DOMContentLoaded', initAddCaseCategoryPage);

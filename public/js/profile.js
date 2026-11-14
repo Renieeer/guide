@@ -32,7 +32,7 @@ function renderAvatarPreview(url) {
     if (!el) return;
 
     if (url) {
-        el.innerHTML = `<img src="${url}" alt="">`;
+        el.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
         if (removeBtn) removeBtn.style.display = '';
         return;
     }
@@ -40,7 +40,7 @@ function renderAvatarPreview(url) {
     if (removeBtn) removeBtn.style.display = 'none';
     const fallbackUrl = defaultAvatarUrl(getCurrentUser());
     if (fallbackUrl) {
-        el.innerHTML = `<img src="${fallbackUrl}" alt="">`;
+        el.innerHTML = `<img src="${escapeHtml(fallbackUrl)}" alt="">`;
     } else {
         el.textContent = userInitials(getCurrentUser());
     }

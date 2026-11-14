@@ -75,7 +75,7 @@ function renderRatingsList(ratings) {
 
     const sorted = [...ratings].sort((a, b) => new Date(b.dateSent) - new Date(a.dateSent));
     container.innerHTML = sorted.map(r => `
-        <div class="review-card ${r.read ? '' : 'is-unread'}" onclick="markRatingRead('${r.id}')">
+        <div class="review-card ${r.read ? '' : 'is-unread'}" onclick="markRatingRead('${jsStr(r.id)}')">
             <div class="review-card-top">
                 <div class="star-display">${starsHtml(r.rating)}</div>
                 <span class="review-date">${formatDate(r.dateSent)}</span>
@@ -124,8 +124,4 @@ function starsHtml(rating) {
     return html;
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value ?? '';
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.

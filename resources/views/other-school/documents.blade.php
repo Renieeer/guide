@@ -932,19 +932,19 @@
 
                 const icon = doc.document_type ? (docTypeIcons[doc.document_type] || 'fa-file') : 'fa-file';
                 const uploadDate = new Date(doc.uploaded_at).toLocaleDateString();
-                const typeLabel = doc.document_type ? `<div><strong>${doc.document_type.replace('-', ' ').toUpperCase()}</strong></div>` : '';
+                const typeLabel = doc.document_type ? `<div><strong>${escapeHtml(doc.document_type.replace('-', ' ').toUpperCase())}</strong></div>` : '';
 
                 card.innerHTML = `
                     <div class="document-icon">
                         <i class="fas ${icon}"></i>
                     </div>
-                    <div class="document-name">${doc.original_filename}</div>
+                    <div class="document-name">${escapeHtml(doc.original_filename)}</div>
                     <div class="document-meta">
                         ${typeLabel}
                         <div>${uploadDate}</div>
                         <div style="font-size: 11px; margin-top: 4px;">${(doc.file_size / 1024).toFixed(2)} KB</div>
                     </div>
-                    ${doc.description ? `<div class="document-meta">${doc.description}</div>` : ''}
+                    ${doc.description ? `<div class="document-meta">${escapeHtml(doc.description)}</div>` : ''}
                     <div class="document-actions">
                         <button class="doc-btn doc-btn-view" onclick="viewDocument(${doc.document_id})">
                             <i class="fas fa-eye"></i> View
@@ -1016,9 +1016,9 @@
 
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><strong>${doc.student_id}</strong></td>
-                    <td><span class="doc-type-badge ${badgeClass}">${docType}</span></td>
-                    <td>${doc.original_filename}</td>
+                    <td><strong>${escapeHtml(doc.student_id)}</strong></td>
+                    <td><span class="doc-type-badge ${escapeHtml(badgeClass)}">${escapeHtml(docType)}</span></td>
+                    <td>${escapeHtml(doc.original_filename)}</td>
                     <td>${uploadDate}</td>
                     <td>${sizeKB} KB</td>
                     <td>

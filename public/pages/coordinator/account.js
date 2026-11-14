@@ -29,7 +29,7 @@ async function detectSchoolLevel() {
         if (gradeFilter && Array.isArray(res.grades)) {
             const previousValue = gradeFilter.value;
             gradeFilter.innerHTML = '<option value="">All Grades</option>' +
-                res.grades.map(g => `<option value="${g.id}">${escapeHtml(g.grade_name)}</option>`).join('');
+                res.grades.map(g => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.grade_name)}</option>`).join('');
             // Keep whatever was selected if it's still a valid option for this
             // school's level; otherwise fall back to "All Grades" rather than
             // silently filtering on a grade number that no longer applies.
@@ -280,7 +280,7 @@ function loadSchoolAccounts() {
             console.error('Error loading accounts:', error);
             const tbody = document.getElementById('accountsTableBody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" class="no-accounts"><i class="bi bi-exclamation-triangle"></i> <p>Error: ${error.message}</p></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="no-accounts"><i class="bi bi-exclamation-triangle"></i> <p>Error: ${escapeHtml(error.message)}</p></td></tr>`;
             }
         });
 }
@@ -357,7 +357,7 @@ function renderPagination(totalFiltered, startIdx, endIdx, totalPages) {
         <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${currentPage <= 1 ? 'disabled' : ''}>
             <i class="bi bi-chevron-left"></i> Prev
         </button>
-        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${totalFiltered} &middot; Page ${currentPage} of ${totalPages}</span>
+        <span class="accounts-page-info">Showing ${startIdx + 1}&ndash;${endIdx} of ${escapeHtml(totalFiltered)} &middot; Page ${escapeHtml(currentPage)} of ${totalPages}</span>
         <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${currentPage >= totalPages ? 'disabled' : ''}>
             Next <i class="bi bi-chevron-right"></i>
         </button>`;
@@ -388,19 +388,19 @@ function renderAccountsTable(accounts) {
 
         return `
         <tr>
-            <td><strong>${account.First_name} ${account.Last_name}</strong></td>
-            <td>${account.email}</td>
+            <td><strong>${escapeHtml(account.First_name)} ${escapeHtml(account.Last_name)}</strong></td>
+            <td>${escapeHtml(account.email)}</td>
             <td>
-                <span class="user-type-badge ${getUserTypeBadgeClass(account.Type)}">
-                    ${formatUserType(account.Type)}
+                <span class="user-type-badge ${escapeHtml(getUserTypeBadgeClass(account.Type))}">
+                    ${escapeHtml(formatUserType(account.Type))}
                 </span>
             </td>
-            <td>${gradeScopeLabel(account.Grade, isElementarySchool) || '&mdash;'}</td>
+            <td>${escapeHtml(gradeScopeLabel(account.Grade, isElementarySchool)) || '&mdash;'}</td>
             <td>${statusBadge}</td>
             <td>${formatDate(account.created_at)}</td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn-edit" onclick="openEditModal(${account.id}, '${account.First_name}', '${account.Last_name}', '${account.email}', '${account.Type}')">
+                    <button class="btn-edit" onclick="openEditModal(${account.id}, '${jsStr(account.First_name)}', '${jsStr(account.Last_name)}', '${jsStr(account.email)}', '${jsStr(account.Type)}')">
                         <i class="bi bi-pencil-square"></i> Edit
                     </button>
                     ${toggleBtn}
@@ -533,11 +533,7 @@ function saveAccountChanges(e) {
     });
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 function ensureExcelModal() {
     if (document.getElementById('excelPreviewModal')) return;
@@ -833,16 +829,16 @@ function renderImportPreview(summary) {
         { num: summary.valid, lbl: 'Ready to Import', icon: 'bi-check-circle', color: 'green' },
         { num: summary.invalid, lbl: 'Invalid', icon: 'bi-x-circle', color: 'red' },
         { num: summary.duplicate_in_file + summary.already_exists, lbl: 'Duplicate / Existing', icon: 'bi-exclamation-triangle', color: 'amber' },
-    ].map(c => `<div class="stat-card"><div class="stat-icon stat-icon-${c.color}"><i class="bi ${c.icon}"></i></div><div><h3>${c.num}</h3><p>${escapeHtml(c.lbl)}</p></div></div>`).join('');
+    ].map(c => `<div class="stat-card"><div class="stat-icon stat-icon-${escapeHtml(c.color)}"><i class="bi ${escapeHtml(c.icon)}"></i></div><div><h3>${escapeHtml(c.num)}</h3><p>${escapeHtml(c.lbl)}</p></div></div>`).join('');
 
     document.getElementById('importPreviewTbody').innerHTML = importValidationResults.map(r => `
         <tr>
-            <td>${r.row}</td>
+            <td>${escapeHtml(r.row)}</td>
             <td>${escapeHtml(r.data.firstName)} ${escapeHtml(r.data.lastName)}</td>
             <td>${escapeHtml(r.data.lrn)}</td>
             <td>${escapeHtml(r.data.email)}</td>
             <td>${r.data.grade != null ? escapeHtml(String(r.data.grade)) : '&mdash;'}</td>
-            <td><span class="user-type-badge ${IMPORT_STATUS_BADGE[r.status] || 'badge-pending'}">${IMPORT_STATUS_LABEL[r.status] || r.status}</span></td>
+            <td><span class="user-type-badge ${escapeHtml(IMPORT_STATUS_BADGE[r.status] || 'badge-pending')}">${escapeHtml(IMPORT_STATUS_LABEL[r.status] || r.status)}</span></td>
             <td style="font-size:12.5px; color:#777;">${r.errors && r.errors.length ? escapeHtml(r.errors.join('; ')) : '&mdash;'}</td>
         </tr>
     `).join('');
@@ -851,7 +847,7 @@ function renderImportPreview(summary) {
     if (summary.valid > 0) {
         confirmBtn.style.display = 'inline-flex';
         confirmBtn.disabled = false;
-        confirmBtn.innerHTML = `<i class="bi bi-cloud-upload"></i> Import ${summary.valid} Account${summary.valid === 1 ? '' : 's'}`;
+        confirmBtn.innerHTML = `<i class="bi bi-cloud-upload"></i> Import ${escapeHtml(summary.valid)} Account${summary.valid === 1 ? '' : 's'}`;
     } else {
         confirmBtn.style.display = 'none';
     }

@@ -49,7 +49,7 @@ let studentDetailCache = {};
 // secondary until that lookup resolves.
 let isElementarySchool = false;
 
-function esc(v) { const d = document.createElement('div'); d.textContent = v == null ? '' : String(v); return d.innerHTML; }
+function esc(v) { return escapeHtml(v); }
 function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 function $(sel, ctx = document) { return ctx.querySelector(sel); }
 function countBy(rows, fn) { return rows.reduce((m, r) => { const k = fn(r) || 'Unspecified'; m[k] = (m[k] || 0) + 1; return m; }, {}); }
@@ -126,19 +126,19 @@ function panelHeader(key, subtitle, onExportPdf) {
 // see css/style.css) so each metric in a row reads as its own thing at a
 // glance instead of four identical blue circles.
 const statCards = cards => `<div class="dashboard-grid" style="margin-bottom:24px;">${cards.map(c => `
-    <div class="stat-card"><div class="stat-icon${c.color ? ' stat-icon-' + c.color : ''}"><i class="bi ${c.icon}"></i></div><div><h3>${c.num}</h3><p>${esc(c.lbl)}</p></div></div>`).join('')}</div>`;
+    <div class="stat-card"><div class="stat-icon${escapeHtml(c.color ? ' stat-icon-' + c.color : '')}"><i class="bi ${escapeHtml(c.icon)}"></i></div><div><h3>${escapeHtml(c.num)}</h3><p>${esc(c.lbl)}</p></div></div>`).join('')}</div>`;
 const chartTile = (id, title, tall) => `<div class="table-container" style="padding:20px;">
     <h4 class="text-primary" style="margin-top:0;">${esc(title)}</h4>
-    <div class="chart-box${tall ? ' chart-box-tall' : ''}" style="position:relative; height:${tall ? 320 : 260}px;"><canvas id="${id}"></canvas></div></div>`;
+    <div class="chart-box${tall ? ' chart-box-tall' : ''}" style="position:relative; height:${tall ? 320 : 260}px;"><canvas id="${escapeHtml(id)}"></canvas></div></div>`;
 // Same card/title framing as chartTile, but for when there's no data to
 // plot yet — an empty Chart.js canvas draws nothing at all (no axes, no
 // "no data" message), which just looks broken rather than "zero".
 const chartTileEmpty = (title, text, tall, icon) => `<div class="table-container" style="padding:20px;">
     <h4 class="text-primary" style="margin-top:0;">${esc(title)}</h4>
     <div style="height:${tall ? 320 : 260}px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; color:var(--text-light);">
-        <div class="empty-state-icon"><i class="bi ${icon || 'bi-bar-chart'}"></i></div>${esc(text)}</div></div>`;
+        <div class="empty-state-icon"><i class="bi ${escapeHtml(icon || 'bi-bar-chart')}"></i></div>${esc(text)}</div></div>`;
 const emptyNote = (text, icon) => `<div class="text-center text-muted" style="background:white; border:1px dashed var(--border-color); border-radius:12px; padding:48px 20px; display:flex; flex-direction:column; align-items:center; gap:14px;">
-    <div class="empty-state-icon${icon === 'bi-arrow-repeat' ? ' spin' : ''}"><i class="bi ${icon || 'bi-inbox'}"></i></div><span>${esc(text)}</span></div>`;
+    <div class="empty-state-icon${icon === 'bi-arrow-repeat' ? ' spin' : ''}"><i class="bi ${escapeHtml(icon || 'bi-inbox')}"></i></div><span>${esc(text)}</span></div>`;
 
 /* ---- PDF preview: build with jsPDF + autoTable, show in-page before print/download ---- */
 let pdfPreviewUrl = null;
@@ -571,11 +571,11 @@ function renderReferrals() {
     } else {
         const tr = reasons.map(r => {
             const g = genderMap[r.reason] || { male: 0, female: 0 };
-            return `<tr><td>${esc(r.reason)}</td><td style="text-align:right;">${r.count}</td><td style="text-align:right;">${g.male}</td><td style="text-align:right;">${g.female}</td></tr>`;
+            return `<tr><td>${esc(r.reason)}</td><td style="text-align:right;">${escapeHtml(r.count)}</td><td style="text-align:right;">${escapeHtml(g.male)}</td><td style="text-align:right;">${escapeHtml(g.female)}</td></tr>`;
         }).join('');
         frag.append(el(`<div><h3 class="text-primary">Reason Breakdown</h3><div class="table-container"><table>
             <thead><tr><th>Referral Reason</th><th style="text-align:right;">Number of Referrals</th><th style="text-align:right;">Male</th><th style="text-align:right;">Female</th></tr></thead>
-            <tbody>${tr}<tr style="font-weight:700;"><td>Overall Total</td><td style="text-align:right;">${totalReasonCount}</td><td style="text-align:right;">${totalMale}</td><td style="text-align:right;">${totalFemale}</td></tr></tbody>
+            <tbody>${tr}<tr style="font-weight:700;"><td>Overall Total</td><td style="text-align:right;">${escapeHtml(totalReasonCount)}</td><td style="text-align:right;">${escapeHtml(totalMale)}</td><td style="text-align:right;">${escapeHtml(totalFemale)}</td></tr></tbody>
         </table></div></div>`));
     }
 

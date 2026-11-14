@@ -538,7 +538,7 @@ function renderStudentList() {
             </div>
             <div class="student-tags">
                 <span class="tag"><i class="bi bi-person-badge"></i> ${escapeHtml(s.role)}</span>
-                <button type="button" class="btn btn-outline btn-sm" onclick="removeStudent('${s.id}')">Remove</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="removeStudent('${jsStr(s.id)}')">Remove</button>
             </div>
         </div>
     `).join('');
@@ -785,28 +785,28 @@ function renderRecentCases() {
                 ${record.status === 'closed' ? '<span class="badge badge-completed">Ended</span>' : '<span class="badge badge-pending">Pending</span>'}
             </td>
             <td style="display:flex;gap:8px;align-items:center;">
-                <button type="button" class="btn btn-outline btn-sm" onclick="toggleStudentDrawer('${record.id}')">
+                <button type="button" class="btn btn-outline btn-sm" onclick="toggleStudentDrawer('${jsStr(record.id)}')">
                     <i class="bi bi-people"></i> View
                 </button>
                 ${record.status !== 'closed' ? `
-                <button type="button" class="btn btn-success btn-sm" onclick="openAppointModal('${record.id}')">
+                <button type="button" class="btn btn-success btn-sm" onclick="openAppointModal('${jsStr(record.id)}')">
                     <i class="bi bi-calendar-plus"></i> Add Counseling Session
                 </button>
-                <button type="button" class="btn btn-warning btn-sm" onclick="openFollowUpModal('${record.id}')">
+                <button type="button" class="btn btn-warning btn-sm" onclick="openFollowUpModal('${jsStr(record.id)}')">
                     <i class="bi bi-chat-dots"></i> Add Student Follow-up
                 </button>
-                <button type="button" class="btn btn-outline btn-sm btn-danger" onclick="endCase('${record.id}')">
+                <button type="button" class="btn btn-outline btn-sm btn-danger" onclick="endCase('${jsStr(record.id)}')">
                     <i class="bi bi-check-circle"></i> End case
                 </button>
                 ` : ''}
             </td>
         </tr>
-        <tr class="drawer-row ${openDrawerId === record.id ? '' : 'hidden'}" id="drawerRow-${record.id}">
+        <tr class="drawer-row ${openDrawerId === record.id ? '' : 'hidden'}" id="drawerRow-${escapeHtml(record.id)}">
             <td colspan="6">
                 <div class="student-drawer">
                     <div class="student-drawer-header">
                         <span><i class="bi bi-people"></i> Students involved in ${escapeHtml(record.id)}</span>
-                        <button type="button" class="drawer-close" onclick="toggleStudentDrawer('${record.id}')">
+                        <button type="button" class="drawer-close" onclick="toggleStudentDrawer('${jsStr(record.id)}')">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -821,7 +821,7 @@ function renderRecentCases() {
                                 const hiddenStudents = students.slice(STUDENT_PREVIEW_LIMIT);
 
                                 let html = visibleStudents.map(s => `
-                                    <div class="drawer-student-card clickable" onclick="openCounselingPanel('${record.id}', '${s.id}')">
+                                    <div class="drawer-student-card clickable" onclick="openCounselingPanel('${jsStr(record.id)}', '${jsStr(s.id)}')">
                                         <div class="cp-avatar">${initials(s.name)}</div>
                                         <div>
                                             <p class="cp-name">${escapeHtml(s.name)}</p>
@@ -834,7 +834,7 @@ function renderRecentCases() {
                                 if (hiddenStudents.length > 0) {
                                     html += `
                                         <div class="drawer-student-more-wrapper">
-                                            <div class="drawer-student-card drawer-student-more clickable" onclick="toggleStudentGroup('${record.id}')">
+                                            <div class="drawer-student-card drawer-student-more clickable" onclick="toggleStudentGroup('${jsStr(record.id)}')">
                                                 <div class="cp-avatar cp-avatar-more"><i class="bi bi-folder2${isExpanded ? '-open' : ''}"></i></div>
                                                 <div>
                                                     <p class="cp-name">+${hiddenStudents.length} more student${hiddenStudents.length > 1 ? 's' : ''}</p>
@@ -842,17 +842,17 @@ function renderRecentCases() {
                                                 </div>
                                             </div>
                                             ${isExpanded ? `
-                                                <div class="student-more-popover-backdrop" onclick="toggleStudentGroup('${record.id}')"></div>
+                                                <div class="student-more-popover-backdrop" onclick="toggleStudentGroup('${jsStr(record.id)}')"></div>
                                                 <div class="student-more-popover" onclick="event.stopPropagation()">
                                                     <div class="student-more-popover-header">
                                                         <span>${hiddenStudents.length} more student${hiddenStudents.length > 1 ? 's' : ''}</span>
-                                                        <button type="button" class="drawer-close" onclick="toggleStudentGroup('${record.id}')">
+                                                        <button type="button" class="drawer-close" onclick="toggleStudentGroup('${jsStr(record.id)}')">
                                                             <i class="bi bi-x-lg"></i>
                                                         </button>
                                                     </div>
                                                     <div class="student-more-popover-list">
                                                         ${hiddenStudents.map(s => `
-                                                            <div class="drawer-student-card clickable" onclick="openCounselingPanel('${record.id}', '${s.id}')">
+                                                            <div class="drawer-student-card clickable" onclick="openCounselingPanel('${jsStr(record.id)}', '${jsStr(s.id)}')">
                                                                 <div class="cp-avatar">${initials(s.name)}</div>
                                                                 <div>
                                                                     <p class="cp-name">${escapeHtml(s.name)}</p>
@@ -874,8 +874,8 @@ function renderRecentCases() {
 
                         <div class="drawer-case-summary">
                             <div class="drawer-case-counts">
-                                <span><strong>${countFollowUpsByTitle(record, 'Counseling Session')}</strong> sessions</span>
-                                <span><strong>${countFollowUpsByTitle(record, 'Follow-up')}</strong> follow-ups</span>
+                                <span><strong>${escapeHtml(countFollowUpsByTitle(record, 'Counseling Session'))}</strong> sessions</span>
+                                <span><strong>${escapeHtml(countFollowUpsByTitle(record, 'Follow-up'))}</strong> follow-ups</span>
                             </div>
                             ${buildCaseTimelineRail(record)}
                         </div>
@@ -2001,11 +2001,4 @@ async function finishEndCase(record) {
     }
 }
 
-function escapeHtml(value) {
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.

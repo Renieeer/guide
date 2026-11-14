@@ -15,6 +15,14 @@ class CaseReportController extends Controller
 
         $action = $_GET['action'] ?? 'categories';
 
+        // Guidance staff get their own school's reports (school and grade scope
+        // are pinned to the account by the legacy.session middleware); the
+        // district-wide reports are the SDO's.
+        api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
+        if (!in_array($action, ['categories', 'list'], true)) {
+            api_require_role(api_roles_sdo());
+        }
+
         /* ── CATEGORY x GRADE x GENDER BREAKDOWN ──
            Real source: counselor_case_scenarios (section/category set by the
            counselor's case workflow) + student_table for authoritative grade/sex
@@ -114,31 +122,7 @@ class CaseReportController extends Controller
 
                     $caseRows = $this->backfill_case_categories($conn, $caseRows);
 
-                    $studentInfo = [];
-                    if (!empty($studentIds)) {
-                        $idList = array_keys($studentIds);
-                        $idPlaceholders = implode(',', array_fill(0, count($idList), '?'));
-                        $idTypes = str_repeat('s', count($idList));
-                        $studentStmt = $conn->prepare("SELECT StudentId, Grade, Sex FROM student_table WHERE StudentId IN ($idPlaceholders)");
-                        if ($studentStmt) {
-                            $studentStmt->bind_param($idTypes, ...$idList);
-                            $studentStmt->execute();
-                            $studentResult = $studentStmt->get_result();
-                            while ($srow = $studentResult->fetch_assoc()) {
-                                // Grade stays raw here — normalizing it depends on
-                                // which school the case referencing this student
-                                // belongs to (a mixed "All Districts" selection can
-                                // have the same student's raw grade text mean
-                                // different things at different schools), so that
-                                // happens per-case below instead of once here.
-                                $studentInfo[$srow['StudentId']] = [
-                                    'gradeRaw' => $srow['Grade'],
-                                    'sex' => (string)($srow['Sex'] ?? '')
-                                ];
-                            }
-                            $studentStmt->close();
-                        }
-                    }
+                    $studentInfo = $this->fetch_student_info($conn, array_keys($studentIds));
 
                     foreach ($caseRows as $caseRow) {
                         $bucketKey = $caseRow['categoryId'] !== ''
@@ -149,31 +133,19 @@ class CaseReportController extends Controller
                             $counts[$bucketKey] = $this->zero_grade_buckets($gradeKeys);
                         }
 
-                        $caseIsElementary = in_array($levelMap[$caseRow['school']] ?? 'Secondary', ['East', 'West', 'South'], true);
+                        $caseIsElementary = $this->school_is_elementary($levelMap, $caseRow['school']);
 
                         foreach ($caseRow['studentIds'] as $sid) {
-                            $info = $studentInfo[$sid] ?? null;
-                            if (!$info) {
+                            $student = $this->countable_student($studentInfo[$sid] ?? null, $caseIsElementary, $gradeScope);
+                            if ($student === null) {
                                 continue;
                             }
 
-                            $grade = normalize_grade_number($info['gradeRaw'], $caseIsElementary);
-                            if ($grade === null) {
-                                continue;
-                            }
-                            if (!empty($gradeScope) && !in_array($grade, $gradeScope, true)) {
-                                continue;
-                            }
-
-                            $gradeKey = (string)$grade;
+                            $gradeKey = (string)$student['grade'];
                             if (!isset($counts[$bucketKey][$gradeKey])) {
                                 $counts[$bucketKey][$gradeKey] = ['m' => 0, 'f' => 0];
                             }
-                            if ($info['sex'] === 'Male') {
-                                $counts[$bucketKey][$gradeKey]['m']++;
-                            } elseif ($info['sex'] === 'Female') {
-                                $counts[$bucketKey][$gradeKey]['f']++;
-                            }
+                            $counts[$bucketKey][$gradeKey][$student['sex'] === 'Male' ? 'm' : 'f']++;
                         }
                     }
                 }
@@ -443,6 +415,9 @@ class CaseReportController extends Controller
             [$dateSql, $dateTypes, $dateValues] = $this->case_date_condition($period, $rangeStart, $rangeEnd);
 
             $schools = [];
+            // school_name => school_level, so each case's student grade is read
+            // the same way 'categories' reads it (1-6 vs 7-12).
+            $levelMap = [];
             if ($district !== '' && strcasecmp($district, 'all') !== 0) {
                 $districtLabel = strcasecmp($district, 'Unassigned') === 0 ? 'Unassigned' : $district;
                 $namesInDistrict = $this->schools_in_district($conn, $district);
@@ -462,6 +437,7 @@ class CaseReportController extends Controller
                             continue;
                         }
                         $schools[$row['school_name']] = ['school' => $row['school_name'], 'district' => $row['district'], 'total' => 0, 'male' => 0, 'female' => 0];
+                        $levelMap[$row['school_name']] = $row['school_level'];
                     }
                 }
             }
@@ -538,35 +514,23 @@ class CaseReportController extends Controller
                         }
                     }
 
-                    $studentSex = [];
-                    if (!empty($studentIds)) {
-                        $idList = array_keys($studentIds);
-                        $idPlaceholders = implode(',', array_fill(0, count($idList), '?'));
-                        $idTypes = str_repeat('s', count($idList));
-                        $studentStmt = $conn->prepare("SELECT StudentId, Sex FROM student_table WHERE StudentId IN ($idPlaceholders)");
-                        if ($studentStmt) {
-                            $studentStmt->bind_param($idTypes, ...$idList);
-                            $studentStmt->execute();
-                            $studentResult = $studentStmt->get_result();
-                            while ($srow = $studentResult->fetch_assoc()) {
-                                $studentSex[$srow['StudentId']] = (string)($srow['Sex'] ?? '');
-                            }
-                            $studentStmt->close();
-                        }
-                    }
+                    $studentInfo = $this->fetch_student_info($conn, array_keys($studentIds));
 
+                    // Same rule as 'categories' (see countable_student()), so each
+                    // school's Total is always Male + Female and the column adds
+                    // up to the category table's Overall Total.
                     foreach ($caseRows as $caseRow) {
                         if (!isset($schools[$caseRow['school']])) {
                             continue;
                         }
+                        $caseIsElementary = $this->school_is_elementary($levelMap, $caseRow['school']);
                         foreach ($caseRow['studentIds'] as $sid) {
-                            $sex = $studentSex[$sid] ?? '';
-                            $schools[$caseRow['school']]['total']++;
-                            if ($sex === 'Male') {
-                                $schools[$caseRow['school']]['male']++;
-                            } elseif ($sex === 'Female') {
-                                $schools[$caseRow['school']]['female']++;
+                            $student = $this->countable_student($studentInfo[$sid] ?? null, $caseIsElementary);
+                            if ($student === null) {
+                                continue;
                             }
+                            $schools[$caseRow['school']]['total']++;
+                            $schools[$caseRow['school']][$student['sex'] === 'Male' ? 'male' : 'female']++;
                         }
                     }
                 }
@@ -763,7 +727,26 @@ class CaseReportController extends Controller
                         }
                     }
 
-                    foreach ($rows as $row) {
+                    $primaryIdsByRow = [];
+                    $studentIds = [];
+                    foreach ($rows as $i => $row) {
+                        $students = json_decode((string)$row['students_json'], true) ?: [];
+                        $primaryIdsByRow[$i] = [];
+                        foreach ($students as $s) {
+                            $role = trim((string)($s['role'] ?? ''));
+                            if (!$this->case_report_role_is_primary($role)) {
+                                continue;
+                            }
+                            $sid = trim((string)($s['id'] ?? $s['StudentId'] ?? $s['studentId'] ?? ''));
+                            if ($sid !== '') {
+                                $primaryIdsByRow[$i][] = $sid;
+                                $studentIds[$sid] = true;
+                            }
+                        }
+                    }
+                    $studentInfo = $this->fetch_student_info($conn, array_keys($studentIds));
+
+                    foreach ($rows as $i => $row) {
                         $level = $schoolLevel[$row['school_attended']] ?? null;
                         if ($level === null || !in_array($level, $groups, true)) {
                             continue; // school not active / not in schools table — skip
@@ -775,11 +758,13 @@ class CaseReportController extends Controller
                         }
                         $bucketKey = $categoryId !== '' ? $categoryId : ('section-' . $row['section_id'] . '-uncategorized');
 
-                        $students = json_decode((string)$row['students_json'], true) ?: [];
+                        // Same rule as 'categories'/'school_breakdown' (see
+                        // countable_student()), so this export's numbers match
+                        // the on-screen tables.
+                        $caseIsElementary = in_array($level, ['East', 'West', 'South'], true);
                         $primaryCount = 0;
-                        foreach ($students as $s) {
-                            $role = trim((string)($s['role'] ?? ''));
-                            if ($this->case_report_role_is_primary($role)) {
+                        foreach ($primaryIdsByRow[$i] as $sid) {
+                            if ($this->countable_student($studentInfo[$sid] ?? null, $caseIsElementary) !== null) {
                                 $primaryCount++;
                             }
                         }
@@ -1005,6 +990,63 @@ class CaseReportController extends Controller
             }
         }
         return true;
+    }
+
+    /** StudentId => ['gradeRaw' => ..., 'sex' => ...] from student_table.
+     *  Grade stays raw: what it means depends on the school of the case that
+     *  references the student (see countable_student()). */
+    private function fetch_student_info(mysqli $conn, array $studentIds): array {
+        $studentIds = array_values(array_map('strval', $studentIds));
+        if (empty($studentIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
+        $stmt = $conn->prepare("SELECT StudentId, Grade, Sex FROM student_table WHERE StudentId IN ($placeholders)");
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param(str_repeat('s', count($studentIds)), ...$studentIds);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $info = [];
+        while ($row = $result->fetch_assoc()) {
+            $info[$row['StudentId']] = [
+                'gradeRaw' => $row['Grade'],
+                'sex' => (string)($row['Sex'] ?? '')
+            ];
+        }
+        $stmt->close();
+
+        return $info;
+    }
+
+    /** The one counting rule shared by every report on District Report Cases
+     *  (category table, Cases by School, DMMR): a case's primary student
+     *  counts only when they have a student record with a readable grade and
+     *  a Male/Female sex. The category table can only place a student in a
+     *  grade's M/F column, so counting anyone else anywhere would make the
+     *  reports' totals disagree with each other. Returns null when the
+     *  student doesn't count. */
+    private function countable_student(?array $info, bool $isElementary, array $gradeScope = []): ?array {
+        if ($info === null || ($info['sex'] !== 'Male' && $info['sex'] !== 'Female')) {
+            return null;
+        }
+        $grade = normalize_grade_number($info['gradeRaw'], $isElementary);
+        if ($grade === null) {
+            return null;
+        }
+        if (!empty($gradeScope) && !in_array($grade, $gradeScope, true)) {
+            return null;
+        }
+        return ['grade' => $grade, 'sex' => $info['sex']];
+    }
+
+    /** East/West/South schools are elementary; anything else (including a
+     *  school missing from $levelMap) is read as secondary. */
+    private function school_is_elementary(array $levelMap, string $school): bool {
+        return in_array($levelMap[$school] ?? 'Secondary', ['East', 'West', 'South'], true);
     }
 
     private function zero_grade_buckets(array $gradeKeys): array {

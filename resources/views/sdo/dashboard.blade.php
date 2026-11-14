@@ -110,12 +110,11 @@
                                 <th>Resolved</th>
                                 <th>Resolution Rate</th>
                                 <th>Last Activity</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="districtTableBody">
                             <tr>
-                                <td colspan="7" class="text-center p-5 text-muted">Loading district data...</td>
+                                <td colspan="6"class="text-center p-5 text-muted">Loading district data...</td>
                             </tr>
                         </tbody>
                     </table>

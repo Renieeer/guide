@@ -17,6 +17,10 @@ class SdoSchoolStaffController extends Controller
 
         $transactionStarted = false;
 
+        // Creates staff accounts, renames/closes schools and switches any
+        // account on or off: SDO only.
+        api_require_role(api_roles_sdo());
+
         try {
             ensure_users_table_grade_column($conn);
             ensure_users_table_active_column($conn);

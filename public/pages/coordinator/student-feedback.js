@@ -124,8 +124,4 @@ function starsHtml(rating) {
     return html;
 }
 
-function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value ?? '';
-    return div.innerHTML;
-}
+// escapeHtml() is the shared copy in js/utils.js.

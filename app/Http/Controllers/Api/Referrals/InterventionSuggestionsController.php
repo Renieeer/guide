@@ -28,6 +28,7 @@ class InterventionSuggestionsController extends Controller
         if ($referralId <= 0) {
             $this->send_json(400, ['success' => false, 'message' => 'referral_id is required']);
         }
+        api_require_referral($conn, $referralId, api_roles_guidance());
 
         $stmt = $conn->prepare('SELECT Reason FROM referral WHERE ReferralID = ?');
         if (!$stmt) {

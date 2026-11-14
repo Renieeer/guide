@@ -20,6 +20,9 @@ class ScheduleEventsController extends Controller
 
             if ($method === 'GET') {
                 $this->api_log('GET request: ' . json_encode($_GET));
+                // The school calendar: staff and students of the school (school is
+                // pinned to the account by the legacy.session middleware).
+                api_require_role(array_merge(api_roles_guidance(), ['student'], api_roles_sdo()));
                 $school = trim((string)($_GET['school'] ?? ''));
                 $month = trim((string)($_GET['month'] ?? ''));
 
@@ -102,9 +105,13 @@ class ScheduleEventsController extends Controller
                 }
 
                 $title = trim((string)($payload['title'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
-                $role = trim((string)($payload['createdRole'] ?? ''));
-                $createdBy = trim((string)($payload['createdBy'] ?? ''));
+                // Creator, role and school come from the logged-in account; they
+                // used to be request fields, and leaving the role out entirely
+                // was let through "for backward compatibility".
+                api_require_role(api_roles_guidance());
+                $school = api_school();
+                $role = api_role();
+                $createdBy = (string) api_user_id();
 
                 if ($title === '' || $school === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Title and school are required']);
@@ -226,8 +233,9 @@ class ScheduleEventsController extends Controller
                 }
 
                 $eventId = trim((string)($payload['id'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
-                $role = trim((string)($payload['createdRole'] ?? ''));
+                api_require_role(api_roles_guidance());
+                $school = api_school();
+                $role = api_role();
 
                 if ($eventId === '' || $school === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Event id and school are required']);
@@ -326,8 +334,9 @@ class ScheduleEventsController extends Controller
 
             if ($method === 'DELETE') {
                 $eventId = trim((string)($_GET['id'] ?? ''));
-                $school = trim((string)($_GET['school'] ?? ''));
-                $role = trim((string)($_GET['role'] ?? ''));
+                api_require_role(api_roles_guidance());
+                $school = api_school();
+                $role = api_role();
                 $this->api_log('DELETE request id=' . $eventId . ' school=' . $school . ' role=' . $role . ' GET=' . json_encode($_GET));
 
                 if ($eventId === '' || $school === '') {

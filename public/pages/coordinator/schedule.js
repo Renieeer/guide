@@ -159,14 +159,7 @@ function formatMonthYear(date) {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is the shared copy in js/utils.js.
 
 function getEventColor(eventId) {
     const colors = [
@@ -268,7 +261,7 @@ function renderScheduleCalendar() {
             const style = isAppointment
                 ? `background: linear-gradient(135deg, ${color.bg} 0%, #ffffff 100%); color: ${color.text}; border-left: 4px solid ${color.text}; font-weight: 700;`
                 : `background: ${color.bg}; color: ${color.text};`;
-            html += `<div class="schedule-event-block" data-event-id="${event.id}" onclick="openViewEventModal('${event.id}')" title="${title}" style="${style}">${title}</div>`;
+            html += `<div class="schedule-event-block" data-event-id="${escapeHtml(event.id)}" onclick="openViewEventModal('${jsStr(event.id)}')" title="${title}" style="${escapeHtml(style)}">${title}</div>`;
         });
 
         html += '</div></div>';
@@ -481,13 +474,13 @@ async function loadScheduleEvents() {
 
     tbody.innerHTML = events.map(event => `
         <tr>
-            <td><strong>${event.title}</strong></td>
-            <td>${event.type}</td>
+            <td><strong>${escapeHtml(event.title)}</strong></td>
+            <td>${escapeHtml(event.type)}</td>
             <td>${formatDate(event.date)}</td>
-            <td>${event.time}</td>
-            <td>${event.location || '-'}</td>
+            <td>${escapeHtml(event.time)}</td>
+            <td>${escapeHtml(event.location || '-')}</td>
             <td>
-                <button class="btn btn-sm btn-danger" onclick="deleteEvent('${event.id}')">Delete</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteEvent('${jsStr(event.id)}')">Delete</button>
             </td>
         </tr>
     `).join('');
@@ -664,16 +657,16 @@ function loadAppointmentRequests() {
 
                 return `
                     <tr>
-                        <td><strong>${request.student_name}</strong></td>
+                        <td><strong>${escapeHtml(request.student_name)}</strong></td>
                         <td>${formatDate(request.preferred_date)}</td>
-                        <td>${request.preferred_time}</td>
-                        <td>${capitalizeFirst(request.reason.replace(/-/g, ' '))}</td>
+                        <td>${escapeHtml(request.preferred_time)}</td>
+                        <td>${escapeHtml(capitalizeFirst(request.reason.replace(/-/g, ' ')))}</td>
                         <td>${statusBadge}</td>
                         <td>
-                            <button class="btn btn-sm btn-info" onclick="viewRequestDetails('${request.id}')"><i class="bi bi-eye"></i> View</button>
-                            ${request.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="approveAppointment('${request.id}')"><i class="bi bi-check-lg"></i> Approve</button>
-                            <button class="btn btn-sm btn-warning" onclick="proposeChanges('${request.id}')"><i class="bi bi-pencil"></i> Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="rejectRequest('${request.id}')"><i class="bi bi-x-lg"></i> Reject</button>` : ''}
+                            <button class="btn btn-sm btn-info" onclick="viewRequestDetails('${jsStr(request.id)}')"><i class="bi bi-eye"></i> View</button>
+                            ${request.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="approveAppointment('${jsStr(request.id)}')"><i class="bi bi-check-lg"></i> Approve</button>
+                            <button class="btn btn-sm btn-warning" onclick="proposeChanges('${jsStr(request.id)}')"><i class="bi bi-pencil"></i> Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectRequest('${jsStr(request.id)}')"><i class="bi bi-x-lg"></i> Reject</button>` : ''}
                         </td>
                     </tr>
                 `;
@@ -684,7 +677,7 @@ function loadAppointmentRequests() {
             const tbody = document.getElementById('appointmentRequestsBody');
             if (tbody) {
                 tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #f00;">Error: ${error.message}</td>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #f00;">Error: ${escapeHtml(error.message)}</td>
                 </tr>`;
             }
         });

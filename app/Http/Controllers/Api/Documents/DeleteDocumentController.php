@@ -27,8 +27,9 @@ class DeleteDocumentController extends Controller
             }
 
             $documentId = (int)($payload['document_id'] ?? 0);
-            $userType = trim((string)($payload['user_type'] ?? ''));
-            $school = trim((string)($payload['school_attended'] ?? ''));
+            // Role and school come from the logged-in account, not the request.
+            $userType = api_role();
+            $school = api_school();
 
             if ($documentId <= 0 || $school === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'document_id and school_attended are required']);

@@ -31,7 +31,8 @@ class UpdateReferralController extends Controller
             // showing once a later, ungated advance has moved past it. The log row
             // below still keeps a permanent copy of it either way.
             $stageNote = isset($payload['stage_note']) ? trim((string)$payload['stage_note']) : '';
-            $changedBy = trim((string)($payload['counselor_name'] ?? ''));
+            // Who moved the referral is recorded from the logged-in account.
+            $changedBy = api_user_name();
             // Set once, by confirmConsentDecision() at Stage 3 — every other caller
             // (a plain "Advance to Next Stage" click, Stage 2's gate, etc.) omits
             // these, and the COALESCE below leaves whatever was already on file
@@ -71,6 +72,12 @@ class UpdateReferralController extends Controller
 
             $resolvedReferralId = (int)$currentRow['ReferralID'];
             $fromStage = (int)$currentRow['stage'];
+
+            // Guidance staff of the referral's school (and grades) only. From
+            // here on the update targets exactly the referral that was checked.
+            api_require_referral($conn, $resolvedReferralId, api_roles_guidance());
+            $referralId = (string)$resolvedReferralId;
+            $referralCode = $referralId;
 
             $stmt = $conn->prepare("
         UPDATE referral SET

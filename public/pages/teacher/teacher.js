@@ -90,14 +90,14 @@ function loadRecentReferrals(teacherReferrals) {
 
     tbody.innerHTML = teacherReferrals.map(referral => `
         <tr>
-            <td><strong>${referral.referral_code || referral.id}</strong></td>
-            <td>${referral.student_name}</td>
-            <td>${referral.grade || 'N/A'}</td>
+            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
+            <td>${escapeHtml(referral.student_name)}</td>
+            <td>${escapeHtml(referral.grade || 'N/A')}</td>
             <td>${formatDate(referral.date_submitted)}</td>
             <td>${createBadge(referral.status)}</td>
-            <td>${referral.stage} / 7</td>
+            <td>${escapeHtml(referral.stage)} / 7</td>
             <td>
-                <a href="referral-status?id=${referral.referral_code || referral.id}" class="btn btn-sm btn-primary">View</a>
+                <a href="referral-status?id=${escapeHtml(referral.referral_code || referral.id)}" class="btn btn-sm btn-primary">View</a>
             </td>
         </tr>
     `).join('');
