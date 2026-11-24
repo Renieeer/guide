@@ -312,6 +312,10 @@
                             <h3 class="text-primary">Student Follow-up (Stage 6)</h3>
                             <p class="text-muted" style="margin-top:-6px;">Pick every day the student should come back. Each day shows how many students are already booked, so you can spread sessions out and keep the office from getting crowded.</p>
 
+                            <!-- Fixed-size layout: the calendar always shows six weeks and
+                                 each list scrolls inside its own box, so clicking days or
+                                 picking sessions never changes the section's height.
+                                 Driven by js/follow-up-scheduler.js. -->
                             <div class="fus-layout">
                                 <div class="appoint-calendar-col fus-calendar">
                                     <div class="appoint-calendar-header">
@@ -326,59 +330,69 @@
                                         </div>
                                     </div>
                                     <div class="appoint-mini-grid fus-grid" id="fusCalendarGrid"></div>
-                                    <div class="appoint-calendar-legend fus-legend">
-                                        <span class="appoint-legend-item"><span class="fus-legend-load load-light">2</span> 1&ndash;2 students</span>
-                                        <span class="appoint-legend-item"><span class="fus-legend-load load-busy">3</span> 3&ndash;4 busy</span>
-                                        <span class="appoint-legend-item"><span class="fus-legend-load load-full">5</span> 5+ crowded</span>
-                                        <span class="appoint-legend-item"><span class="appoint-legend-dot"></span> Event</span>
-                                        <span class="appoint-legend-item"><span class="fus-legend-own"></span> This student's session</span>
-                                        <span class="appoint-legend-item"><span class="appoint-legend-swatch"></span> Picked</span>
-                                        <span class="appoint-legend-item"><span class="appoint-legend-ring"></span> Today</span>
+                                    <div class="fus-legend">
+                                        <div class="fus-legend-group">
+                                            <span class="fus-legend-label">Students booked</span>
+                                            <span class="appoint-legend-item"><span class="fus-legend-load load-light">2</span> 1&ndash;2</span>
+                                            <span class="appoint-legend-item"><span class="fus-legend-load load-busy">3</span> 3&ndash;4 busy</span>
+                                            <span class="appoint-legend-item"><span class="fus-legend-load load-full">5</span> 5+ crowded</span>
+                                        </div>
+                                        <div class="fus-legend-group">
+                                            <span class="appoint-legend-item"><span class="appoint-legend-dot"></span> Event</span>
+                                            <span class="appoint-legend-item"><span class="fus-legend-own"></span> This student's session</span>
+                                            <span class="appoint-legend-item"><span class="appoint-legend-swatch"></span> Picked</span>
+                                            <span class="appoint-legend-item"><span class="appoint-legend-ring"></span> Today</span>
+                                        </div>
                                     </div>
                                     <div class="fus-agenda">
                                         <div class="appoint-details-header">
                                             <span class="appoint-section-label">On this day</span>
                                             <div class="appoint-selected-date-chip" id="fusAgendaDate"></div>
                                         </div>
-                                        <div id="fusAgendaList"></div>
+                                        <div class="fus-agenda-body" id="fusAgendaList"></div>
                                     </div>
                                 </div>
 
-                                <div class="fus-side">
-                                    <div class="fus-panel">
-                                        <div class="appoint-details-header">
-                                            <span class="appoint-section-label">Sessions to schedule</span>
-                                            <span class="fus-count" id="fusSelectedCount"></span>
-                                        </div>
-                                        <div id="fusSelectedList"></div>
-                                        <div class="form-group" style="margin:12px 0 0;">
+                                <div class="fus-panel fus-plan">
+                                    <div class="fus-plan-head">
+                                        <span class="appoint-section-label">Sessions to schedule</span>
+                                        <span class="fus-count" id="fusSelectedCount"></span>
+                                        <button type="button" class="fus-clear" id="fusClearBtn" aria-label="Clear all picked days" title="Clear all picked days" hidden><i class="bi bi-x-circle" aria-hidden="true"></i><span class="fus-clear-text">Clear all</span></button>
+                                    </div>
+                                    <div class="fus-plan-list" id="fusSelectedList"></div>
+                                    <div class="fus-plan-foot">
+                                        <div class="form-group">
                                             <label for="fusNote">Note for the student (optional)</label>
                                             <input type="text" id="fusNote" placeholder="e.g. Bring your journal">
                                         </div>
                                         <button type="button" class="btn btn-primary fus-schedule-btn" id="fusScheduleBtn" disabled><i class="bi bi-calendar-plus"></i> Schedule session</button>
                                     </div>
+                                </div>
+                            </div>
 
-                                    <!-- Check-in log as a folder: each saved check-in is a file inside;
-                                         a new check-in is dated the day it is saved. -->
-                                    <div class="fus-folder is-open" id="fusCheckinFolder">
-                                        <button type="button" class="fus-folder-tab" id="fusFolderToggle" aria-expanded="true" aria-controls="fusFolderBody">
-                                            <i class="bi bi-folder2-open fus-folder-icon" aria-hidden="true"></i>
-                                            <span class="fus-folder-title">Check-in log</span>
-                                            <span class="fus-folder-count" id="fusCheckinCount">0</span>
-                                            <i class="bi bi-chevron-down fus-folder-chevron" aria-hidden="true"></i>
-                                        </button>
-                                        <div class="fus-folder-body" id="fusFolderBody">
-                                            <p class="fus-folder-summary" id="fusFolderSummary"></p>
+                            <!-- Check-in log as a folder: each saved check-in is a file inside;
+                                 a new check-in is dated the day it is saved. It has its own
+                                 full-width row, with the new check-in beside the saved ones. -->
+                            <div class="fus-folder is-open" id="fusCheckinFolder">
+                                <button type="button" class="fus-folder-tab" id="fusFolderToggle" aria-expanded="true" aria-controls="fusFolderBody">
+                                    <i class="bi bi-folder2-open fus-folder-icon" aria-hidden="true"></i>
+                                    <span class="fus-folder-title">Check-in log</span>
+                                    <span class="fus-folder-count" id="fusCheckinCount">0</span>
+                                    <i class="bi bi-chevron-down fus-folder-chevron" aria-hidden="true"></i>
+                                </button>
+                                <div class="fus-folder-body" id="fusFolderBody">
+                                    <p class="fus-folder-summary" id="fusFolderSummary"></p>
+                                    <div class="fus-folder-columns">
+                                        <div class="fus-files-col">
                                             <div id="followUpHistoryList" class="fus-files"></div>
-
-                                            <form id="followUpForm" class="fus-file fus-file-new">
-                                                <div class="form-group" style="margin:0;">
-                                                    <label for="followUpNotes"><i class="bi bi-file-earmark-plus"></i> Today's check-in — student's progress/well-being</label>
-                                                    <textarea id="followUpNotes" name="followUpNotes" rows="3" placeholder="What was observed or discussed during this follow-up..."></textarea>
-                                                </div>
-                                                <button type="submit" class="btn btn-success"><i class="bi bi-save"></i> Save Check-in</button>
-                                            </form>
                                         </div>
+                                        <form id="followUpForm" class="fus-file fus-file-new">
+                                            <div class="form-group" style="margin:0;">
+                                                <label for="followUpNotes"><i class="bi bi-file-earmark-plus"></i> Today's check-in — student's progress/well-being</label>
+                                                <textarea id="followUpNotes" name="followUpNotes" rows="4" placeholder="What was observed or discussed during this follow-up..."></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-success"><i class="bi bi-save"></i> Save Check-in</button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>

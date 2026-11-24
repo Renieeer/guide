@@ -31,10 +31,11 @@ const FollowUpScheduler = (() => {
         { label: 'Afternoon (1:00 PM - 4:00 PM)', slots: ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30'] }
     ];
     const ALL_SLOTS = SLOT_GROUPS.flatMap(g => g.slots);
-    // Appointments in these states hold their time slot (same rule as the
-    // student booking page and the Appoint Students modal).
-    const HOLDING_STATUSES = new Set(['pending', 'approved']);
+    // Every appointment that wasn't rejected or cancelled holds its time slot
+    // (same rule as js/schedule-slots.js and api/appointment-request, which
+    // checks it again when a session is saved).
     const INACTIVE_STATUSES = new Set(['rejected', 'cancelled']);
+    const isHolding = (a) => !INACTIVE_STATUSES.has(String(a.status || '').toLowerCase());
     // Students booked on one day: 3+ is busy, 5+ is crowded.
     const LOAD_BUSY = 3;
     const LOAD_FULL = 5;
@@ -46,8 +47,13 @@ const FollowUpScheduler = (() => {
         selected: new Map(),     // 'YYYY-MM-DD' -> 'HH:MM' ('' = no time yet)
         agendaDate: '',
         lastTime: '',
+        justPicked: '',          // day just added, scrolled into view in the list
         appointments: [],
         eventsByMonth: new Map(), // 'YYYY-MM' -> schedule events
+        // 'YYYY-MM' -> booked times across the whole school (date and time
+        // only). The appointment list only covers the grades this counselor
+        // handles, but a slot taken by any grade is still taken.
+        bookedByMonth: new Map(),
         loadId: 0,
         wired: false
     };
@@ -137,13 +143,19 @@ const FollowUpScheduler = (() => {
         const end = start + SLOT_MINUTES;
         for (const ev of eventsOn(dateStr)) {
             if (ev.allDay) return ev.title || 'All-day event';
-            const s = toMinutes(ev.time), e = toMinutes(ev.endTime);
+            const s = toMinutes(ev.time);
+            const e = toMinutes(ev.endTime) ?? (s === null ? null : s + SLOT_MINUTES);
             if (s !== null && e !== null && start < e && end > s) return ev.title || 'Event';
         }
         for (const a of appointmentsOn(dateStr)) {
-            if (!HOLDING_STATUSES.has(String(a.status || '').toLowerCase())) continue;
+            if (!isHolding(a)) continue;
             const s = toMinutes(a.preferred_time);
             if (s !== null && start < s + SLOT_MINUTES && end > s) return a.student_name || 'Another student';
+        }
+        for (const slot of state.bookedByMonth.get(dateStr.slice(0, 7)) || []) {
+            if (datePart(slot.date) !== dateStr) continue;
+            const s = toMinutes(slot.time);
+            if (s !== null && start < s + SLOT_MINUTES && end > s) return 'booked';
         }
         return null;
     }
@@ -187,6 +199,7 @@ const FollowUpScheduler = (() => {
         const res = await fetch(`${EVENTS_API}?school=${encodeURIComponent(school())}&month=${encodeURIComponent(key)}`);
         const json = await res.json();
         state.eventsByMonth.set(key, json && json.success ? (json.data || []) : []);
+        state.bookedByMonth.set(key, json && json.success ? (json.booked || []) : []);
     }
 
     async function refreshCalendarData({ appointments = false } = {}) {
@@ -220,7 +233,9 @@ const FollowUpScheduler = (() => {
         const month = state.viewDate.getMonth();
         const startDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const cells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+        // Always six weeks, so the calendar is the same height every month
+        // and paging between months doesn't move the page.
+        const cells = 42;
         const now = today();
 
         label.textContent = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -228,8 +243,10 @@ const FollowUpScheduler = (() => {
         let html = WEEKDAYS.map(d => `<div class="appoint-mini-weekday">${d}</div>`).join('');
         for (let i = 0; i < cells; i++) {
             const day = i - startDay + 1;
+            // Neighbouring months' days fill the six weeks, faded and not
+            // clickable (their bookings show when that month is opened).
             if (day < 1 || day > daysInMonth) {
-                html += '<div class="appoint-mini-day is-outside" aria-hidden="true"></div>';
+                html += `<div class="appoint-mini-day fus-day is-adjacent" aria-hidden="true"><span class="appoint-day-num">${new Date(year, month, day).getDate()}</span></div>`;
                 continue;
             }
             const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
@@ -264,9 +281,13 @@ const FollowUpScheduler = (() => {
         const list = $('fusAgendaList');
         if (!chip || !list) return;
         const dateStr = state.agendaDate;
+        // A different day starts at the top of the box; the same day keeps
+        // its scroll position when the data refreshes.
+        const keepScroll = list.dataset.date === dateStr ? list.scrollTop : 0;
+        list.dataset.date = dateStr;
         if (!dateStr) {
-            chip.innerHTML = '<i class="bi bi-calendar-x"></i> <span class="placeholder">Click a day to see what\'s set on it</span>';
-            list.innerHTML = '';
+            chip.innerHTML = '<i class="bi bi-calendar-x"></i> <span class="placeholder">No day selected</span>';
+            list.innerHTML = '<p class="fus-agenda-hint"><i class="bi bi-hand-index"></i> Click a day on the calendar to see the events and sessions set on it.</p>';
             return;
         }
         chip.innerHTML = `<i class="bi bi-calendar-check"></i> ${escapeHtml(fmtLong(dateStr))}`;
@@ -291,10 +312,13 @@ const FollowUpScheduler = (() => {
 
         const items = [
             ...info.events.map(ev => {
-                const when = ev.allDay ? 'All day' : `${fmtTime(ev.time)}${ev.endTime ? ` – ${fmtTime(ev.endTime)}` : ''}`;
+                // A range goes on two lines so it fits the time column.
+                const when = ev.allDay
+                    ? 'All day'
+                    : `${escapeHtml(fmtTime(ev.time))}${ev.endTime ? `<small>to ${escapeHtml(fmtTime(ev.endTime))}</small>` : ''}`;
                 return `<li class="fus-agenda-item is-event">
                     <i class="bi bi-calendar2-week" aria-hidden="true"></i>
-                    <span class="fus-agenda-time">${escapeHtml(when)}</span>
+                    <span class="fus-agenda-time">${when}</span>
                     <span class="fus-agenda-what">${escapeHtml(ev.title || 'Event')}</span>
                 </li>`;
             }),
@@ -312,11 +336,14 @@ const FollowUpScheduler = (() => {
             })
         ];
 
-        list.innerHTML = notes.map(n => `<p class="fus-agenda-note"><i class="bi bi-info-circle"></i> ${escapeHtml(n)}</p>`).join('')
-            + summary
+        // How busy the day is first, then why it can't be picked (if so), then
+        // everything set on it. All of it scrolls inside the fixed-height box.
+        list.innerHTML = summary
+            + notes.map(n => `<p class="fus-agenda-note"><i class="bi bi-info-circle"></i> ${escapeHtml(n)}</p>`).join('')
             + (items.length
                 ? `<ul class="fus-agenda-list">${items.join('')}</ul>`
                 : '<div class="appoint-day-events is-vacant"><i class="bi bi-check-circle"></i> Fully vacant: no events or appointments on this day.</div>');
+        list.scrollTop = keepScroll;
     }
 
     function timeOptions(dateStr, chosen) {
@@ -333,40 +360,74 @@ const FollowUpScheduler = (() => {
         return html;
     }
 
+    function planEmpty(icon, title, text) {
+        return `<div class="fus-plan-empty">
+            <span class="fus-plan-empty-icon"><i class="bi ${icon}" aria-hidden="true"></i></span>
+            <strong>${escapeHtml(title)}</strong>
+            <span>${escapeHtml(text)}</span>
+        </div>`;
+    }
+
+    // Scrolls the list box (only the box, never the page) so `row` shows.
+    function revealInList(list, row) {
+        if (!row) return;
+        const top = row.offsetTop - 8;
+        const bottom = row.offsetTop + row.offsetHeight + 8;
+        if (top < list.scrollTop) list.scrollTop = top;
+        else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    }
+
     function renderSelected() {
         const list = $('fusSelectedList');
         const count = $('fusSelectedCount');
         const btn = $('fusScheduleBtn');
+        const clear = $('fusClearBtn');
         if (!list) return;
 
         const dates = [...state.selected.keys()].sort();
         if (count) count.textContent = dates.length ? `${dates.length} picked` : '';
+        if (clear) clear.hidden = dates.length === 0;
         if (btn) {
             btn.disabled = dates.length === 0 || !canSchedule();
             btn.innerHTML = `<i class="bi bi-calendar-plus"></i> ${dates.length > 1 ? `Schedule ${dates.length} sessions` : 'Schedule session'}`;
         }
 
         if (!canSchedule()) {
-            list.innerHTML = '<p class="fus-empty">This referral isn\'t linked to a student account, so sessions can\'t be booked from here.</p>';
+            list.innerHTML = planEmpty('bi-person-x', 'No student account linked',
+                'This referral isn\'t linked to a student account, so sessions can\'t be booked from here.');
             return;
         }
         if (dates.length === 0) {
-            list.innerHTML = '<p class="fus-empty">Pick one or more days on the calendar. Each day you pick becomes a session the student should come back for.</p>';
+            list.innerHTML = planEmpty('bi-calendar-plus', 'No days picked yet',
+                'Click days on the calendar. Each day you pick becomes a session the student comes back for, and you can set its time here.');
             return;
         }
 
+        const keepScroll = list.scrollTop;
         list.innerHTML = dates.map(dateStr => {
             const info = dayInfo(dateStr);
+            const day = parseDay(dateStr);
             const loadClass = info.level === 'full' ? 'is-full' : info.level === 'busy' ? 'is-busy' : 'is-light';
             return `<div class="fus-selected-row" data-date="${dateStr}">
+                <span class="fus-date-tile" aria-hidden="true">
+                    <small>${escapeHtml(day.toLocaleDateString('en-US', { month: 'short' }))}</small>
+                    <strong>${day.getDate()}</strong>
+                </span>
                 <div class="fus-selected-date">
-                    <strong>${escapeHtml(fmtShort(dateStr))}</strong>
-                    <small class="${loadClass}">${escapeHtml(loadText(info.students))}${info.level === 'full' ? ' · crowded' : ''}</small>
+                    <strong>${escapeHtml(day.toLocaleDateString('en-US', { weekday: 'long' }))}</strong>
+                    <small class="${loadClass}">${info.students === 0 ? 'None booked' : `${info.students} booked`}${info.level === 'full' ? ' · crowded' : ''}</small>
                 </div>
                 <select class="fus-time" data-date="${dateStr}" aria-label="Time on ${escapeHtml(fmtLong(dateStr))}">${timeOptions(dateStr, state.selected.get(dateStr))}</select>
                 <button type="button" class="fus-remove" data-date="${dateStr}" aria-label="Remove ${escapeHtml(fmtLong(dateStr))}" title="Remove"><i class="bi bi-x-lg"></i></button>
             </div>`;
         }).join('');
+        list.scrollTop = keepScroll;
+
+        // Bring a day that was just picked into view inside the list.
+        if (state.justPicked) {
+            revealInList(list, list.querySelector(`.fus-selected-row[data-date="${state.justPicked}"]`));
+            state.justPicked = '';
+        }
     }
 
     /* ---------- actions ---------- */
@@ -383,8 +444,12 @@ const FollowUpScheduler = (() => {
     function onDayClick(dateStr) {
         state.agendaDate = dateStr;
         if (isSelectable(dateStr) && canSchedule()) {
-            if (state.selected.has(dateStr)) state.selected.delete(dateStr);
-            else state.selected.set(dateStr, firstFreeTime(dateStr));
+            if (state.selected.has(dateStr)) {
+                state.selected.delete(dateStr);
+            } else {
+                state.selected.set(dateStr, firstFreeTime(dateStr));
+                state.justPicked = dateStr;
+            }
         }
         render();
     }
@@ -458,6 +523,9 @@ const FollowUpScheduler = (() => {
                 if (booked) showAlert(`${booked} follow-up session${booked === 1 ? '' : 's'} scheduled.`, 'success');
                 if (failed.length) showAlert(`Could not schedule: ${failed.join('; ')}`, 'error');
                 if (booked && $('fusNote')) $('fusNote').value = '';
+                // Fresh booked times too, including any slot refused as taken.
+                state.eventsByMonth.clear();
+                state.bookedByMonth.clear();
                 await refreshCalendarData({ appointments: true });
             },
             { title: 'Schedule follow-up sessions', confirmLabel: 'Schedule', busyLabel: 'Scheduling...' }
@@ -469,7 +537,7 @@ const FollowUpScheduler = (() => {
     // The next follow-up session after `dateStr` that's still on.
     function nextSessionAfter(dateStr) {
         return state.appointments
-            .filter(a => isOwnSession(a) && HOLDING_STATUSES.has(String(a.status || '').toLowerCase()) && datePart(a.preferred_date) > dateStr)
+            .filter(a => isOwnSession(a) && isHolding(a) && datePart(a.preferred_date) > dateStr)
             .map(a => datePart(a.preferred_date))
             .sort()[0] || '';
     }
@@ -643,6 +711,10 @@ const FollowUpScheduler = (() => {
         });
 
         $('fusScheduleBtn')?.addEventListener('click', scheduleSessions);
+        $('fusClearBtn')?.addEventListener('click', () => {
+            state.selected.clear();
+            render();
+        });
         $('followUpForm')?.addEventListener('submit', submitCheckIn);
         $('fusFolderToggle')?.addEventListener('click', () => {
             setFolderOpen(!$('fusCheckinFolder').classList.contains('is-open'));
@@ -664,6 +736,7 @@ const FollowUpScheduler = (() => {
         }
         state.referral = referral;
         state.eventsByMonth.clear();
+        state.bookedByMonth.clear();
 
         render();
         loadCheckIns();
