@@ -21,7 +21,7 @@
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-calendar3-week"></i> Calendar</div>
                     <h2 class="page-hero-title">Schedule Management</h2>
-                    <p class="page-hero-text">Plan meetings, coordinate training sessions, and schedule case reviews for your team.</p>
+                    <p class="page-hero-text">Plan meetings, coordinate training sessions, and schedule case reviews for your team. Students' counseling sessions are handled by the counselors.</p>
                 </div>
             </div>
 
@@ -34,7 +34,7 @@
                             <div class="schedule-calendar-icon"><i class="bi bi-calendar3"></i></div>
                             <div>
                                 <h2>Schedule Calendar</h2>
-                                <p>Plan meetings, training, and review sessions.</p>
+                                <p>Click a weekday to add an event. Times already booked for counseling are greyed out.</p>
                             </div>
                         </div>
                         <div class="schedule-calendar-actions">
@@ -55,9 +55,9 @@
                     <div id="scheduleCalendar"></div>
                 </div>
 
-                <!-- Schedule Table -->
-                <div class="table-container">
-                    <h2 class="mb-4">Upcoming Events</h2>
+                <!-- Schedule Table (the month on the calendar) -->
+                <div class="table-container mb-5">
+                    <h2 class="mb-4" id="scheduleTableTitle">Events</h2>
                     <table>
                         <thead>
                             <tr>
@@ -72,28 +72,6 @@
                         <tbody id="scheduleTableBody">
                             <tr>
                                 <td colspan="6" class="text-center p-5 text-muted">No scheduled events yet</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Student Appointment Requests -->
-                <div class="table-container mb-5">
-                    <h2 class="mb-4"><i class="bi bi-hourglass-split"></i> Student Appointment Requests</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Requested Date</th>
-                                <th>Time</th>
-                                <th>Reason</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="appointmentRequestsBody">
-                            <tr>
-                                <td colspan="6" class="text-center p-5 text-muted">No appointment requests yet</td>
                             </tr>
                         </tbody>
                     </table>
@@ -132,6 +110,7 @@
                                     <input type="checkbox" id="modalEventAllDay">
                                     <span>All Day</span>
                                 </label>
+                                <p class="schedule-booked-hint" id="modalEventBookedHint" hidden></p>
 
                                 <div id="modalEventTimeFields">
                                     <div class="form-row">
@@ -214,78 +193,11 @@
         </div>
     </div>
     
-    <!-- Appointment Request Detail Modal -->
-    <div id="requestModal" class="modal" style="display: none;">
-        <div class="modal-content view-event-modal-new">
-            <div class="view-modal-header">
-                <h2 id="requestModalTitle">Appointment Request</h2>
-                <span class="modal-close" onclick="closeRequestModal()" style="cursor: pointer;">&times;</span>
-            </div>
-                <div class="view-modal-body">
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="bi bi-person"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3 class="event-detail-title">Student Name</h3>
-                        <p id="requestStudentName" class="event-detail-text"></p>
-                    </div>
-                </div>
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="bi bi-pen"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3 class="event-detail-title">Reason</h3>
-                        <p id="requestReason" class="event-detail-text"></p>
-                    </div>
-                </div>
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="bi bi-clock"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3 class="event-detail-title">Requested Date & Time</h3>
-                        <p id="requestDateTime" class="event-detail-text"></p>
-                    </div>
-                </div>
-                <div class="event-detail-section">
-                    <div class="event-detail-icon">
-                        <i class="bi bi-hourglass-split"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3 class="event-detail-title">Status</h3>
-                        <p id="requestStatus" class="event-detail-text"></p>
-                    </div>
-                </div>
-                <div class="event-detail-section" id="requestNotesSection" style="display:none;">
-                    <div class="event-detail-icon">
-                        <i class="bi bi-journal-text"></i>
-                    </div>
-                    <div class="event-detail-content">
-                        <h3 class="event-detail-title">Student Notes</h3>
-                        <p id="requestNotes" class="event-detail-text"></p>
-                    </div>
-                </div>
-            </div>
-            <div class="view-modal-footer">
-                <button type="button" class="btn btn-success" id="approveRequestBtn" onclick="approveAppointmentFromModal()">
-                    <i class="bi bi-check-lg"></i> Approve
-                </button>
-                <button type="button" class="btn btn-warning" id="proposeChangeBtn" onclick="proposeChangesFromModal()">
-                    <i class="bi bi-pencil-square"></i> Propose Changes
-                </button>
-                <button type="button" class="btn btn-danger" id="rejectRequestBtn" onclick="rejectRequestFromModal()">
-                    <i class="bi bi-x-lg"></i> Reject
-                </button>
-            </div>
-        </div>
-    </div>
-    
     <!-- View Event Modal (created dynamically by JS) -->
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/schedule-slots.js') }}?v={{ filemtime(public_path('js/schedule-slots.js')) }}"></script>
     <script src="{{ asset('pages/coordinator/schedule.js') }}?v={{ filemtime(public_path('pages/coordinator/schedule.js')) }}"></script>
 </body>
 </html>

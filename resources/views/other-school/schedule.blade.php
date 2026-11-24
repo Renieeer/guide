@@ -32,6 +32,13 @@
             margin: 0 auto !important;
             border-collapse: collapse !important;
         }
+
+        /* Appointment/event details open on top of the Create Schedule
+           modal's day list, so they stack above it. */
+        #requestModal,
+        #viewEventModal {
+            z-index: 1010;
+        }
     </style>
     <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
@@ -88,86 +95,6 @@
                     </div>
                 </div>
 
-                <!-- Student Appointment Requests -->
-                <div class="table-container mb-5">
-                    <h2 class="mb-4"><i class="bi bi-hourglass-split"></i> Student Appointment Requests</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Requested Date</th>
-                                <th>Time</th>
-                                <th>Reason</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="appointmentRequestsBody">
-                            <tr>
-                                <td colspan="6" class="text-center p-5 text-muted">No appointment requests yet</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Edit Appointment Modal -->
-    <div id="editAppointmentModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Edit Appointment Request</h2>
-                <span class="modal-close" onclick="closeEditModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="editAppointmentForm">
-                    <div class="form-group">
-                        <label>Student Name</label>
-                        <input type="text" id="editStudentName" readonly style="background-color: #f5f5f5;">
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentDate">Date *</label>
-                        <input type="date" id="editAppointmentDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentTime">Time *</label>
-                        <select id="editAppointmentTime" required>
-                            <option value="">Select a time...</option>
-                            <optgroup label="Morning (8:00 AM - 12:00 PM)">
-                                <option value="08:00">8:00 AM</option>
-                                <option value="08:30">8:30 AM</option>
-                                <option value="09:00">9:00 AM</option>
-                                <option value="09:30">9:30 AM</option>
-                                <option value="10:00">10:00 AM</option>
-                                <option value="10:30">10:30 AM</option>
-                                <option value="11:00">11:00 AM</option>
-                                <option value="11:30">11:30 AM</option>
-                            </optgroup>
-                            <optgroup label="Afternoon (1:00 PM - 4:00 PM)">
-                                <option value="13:00">1:00 PM</option>
-                                <option value="13:30">1:30 PM</option>
-                                <option value="14:00">2:00 PM</option>
-                                <option value="14:30">2:30 PM</option>
-                                <option value="15:00">3:00 PM</option>
-                                <option value="15:30">3:30 PM</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentLocation">Location/Office</label>
-                        <input type="text" id="editAppointmentLocation" placeholder="e.g., Counseling Office, Room 101">
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentNotes">Notes</label>
-                        <textarea id="editAppointmentNotes" style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-success">Save Changes</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- View Request Modal -->
     <div id="requestModal" class="modal" style="display: none;">
         <div class="modal-content view-event-modal-new">
@@ -222,59 +149,47 @@
                     </div>
                 </div>
             </div>
-                <div class="view-modal-footer">
+            <!-- The time was checked as free when it was booked, so a waiting
+                 request only needs approving; nothing to decline or move. -->
+            <div class="view-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRequestModal()">Close</button>
                 <button type="button" class="btn btn-success" id="approveRequestBtn" onclick="approveAppointmentFromModal()">
                     <i class="bi bi-check-lg"></i> Approve
                 </button>
-                <button type="button" class="btn btn-warning" id="proposeChangeBtn" onclick="proposeChangesFromModal()">
-                    <i class="bi bi-pencil-square"></i> Propose Changes
-                </button>
-                <button type="button" class="btn btn-danger" id="rejectRequestBtn" onclick="rejectRequestFromModal()">
-                    <i class="bi bi-x-lg"></i> Reject
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Decline Appointment Modal -->
-    <div id="declineAppointmentModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Decline Appointment Request</h2>
-                <span class="modal-close" onclick="closeDeclineModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="declineAppointmentForm">
-                    <div class="form-group">
-                        <label>Student Name</label>
-                        <input type="text" id="declineStudentName" readonly style="background-color: #f5f5f5;">
-                    </div>
-                    <div class="form-group">
-                        <label for="declineReason">Reason for Declining *</label>
-                        <textarea id="declineReason" placeholder="Explain why you are declining this appointment request..." required style="min-height: 100px;"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="suggestAlternative">Suggest Alternative (Optional)</label>
-                        <textarea id="suggestAlternative" placeholder="Suggest a different time or provide guidance on next steps..." style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-danger"><i class="bi bi-x-lg"></i> Decline Request</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeclineModal()">Cancel</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
 
     <!-- View Event Modal (created dynamically by JS) -->
 
-    <!-- Create Schedule Modal (opened by calendar day click) -->
+    <!-- Create Schedule Modal (opened by calendar day click). The left panel
+         lists what is already booked on that day; past days and weekends open
+         the panel alone (view-only). -->
     <div id="createScheduleModal" class="modal" style="display: none;">
-        <div class="modal-content schedule-create-modal">
+        <div class="modal-content schedule-create-modal schedule-day-modal">
             <div class="modal-header">
                 <h2><i class="bi bi-calendar-plus"></i> Create Schedule</h2>
                 <span class="modal-close" id="closeCreateScheduleModal">&times;</span>
             </div>
+            <div class="schedule-day-layout">
+            <aside class="schedule-day-agenda" aria-label="Appointments and events on the selected day">
+                <div class="schedule-day-head">
+                    <div class="schedule-day-badge" aria-hidden="true">
+                        <span class="schedule-day-badge-month" id="scheduleDayMonth"></span>
+                        <span class="schedule-day-badge-num" id="scheduleDayNum"></span>
+                    </div>
+                    <div class="schedule-day-heading">
+                        <span class="schedule-day-weekday" id="scheduleDayWeekday"></span>
+                        <span class="schedule-day-fulldate" id="scheduleDayFull"></span>
+                    </div>
+                </div>
+                <div class="schedule-day-counts" id="scheduleDayCounts"></div>
+                <div class="schedule-day-section">
+                    <span class="schedule-modal-section-label"><i class="bi bi-clock-history"></i> On this day</span>
+                    <div class="schedule-day-list" id="scheduleDayList"></div>
+                </div>
+                <p class="schedule-day-notice" id="scheduleDayNotice" hidden></p>
+            </aside>
             <div class="modal-body">
                 <form id="createScheduleModalForm">
                     <div class="form-group">
@@ -300,6 +215,7 @@
                             <input type="checkbox" id="modalEventAllDay">
                             <span>All Day</span>
                         </label>
+                        <p class="schedule-booked-hint" id="modalEventBookedHint" hidden></p>
 
                         <div id="modalEventTimeFields">
                             <div class="form-row">
@@ -377,11 +293,13 @@
                     </div>
                 </form>
             </div>
+            </div>
         </div>
     </div>
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/schedule-slots.js') }}?v={{ filemtime(public_path('js/schedule-slots.js')) }}"></script>
     <script src="{{ asset('pages/other-school/schedule.js') }}?v={{ filemtime(public_path('pages/other-school/schedule.js')) }}"></script>
 </body>
 </html>

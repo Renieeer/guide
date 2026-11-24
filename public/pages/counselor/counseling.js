@@ -1640,6 +1640,10 @@ let appointCalendarViewDate = new Date();
 let appointSelectedDate     = '';
 let appointScheduleEvents   = [];
 let appointBookedEvents     = [];
+// Booked times across the whole school (date and time only), from
+// api/schedule-events. The appointment list above only covers the grades
+// this counselor handles, but a slot taken by any grade is still taken.
+let appointBookedSlots      = [];
 
 function appointGetCurrentSchool() {
     const user = getCurrentUser();
@@ -1661,6 +1665,7 @@ async function loadAppointCalendarData() {
     if (!school) {
         appointScheduleEvents = [];
         appointBookedEvents = [];
+        appointBookedSlots = [];
         return;
     }
 
@@ -1672,11 +1677,13 @@ async function loadAppointCalendarData() {
             fetch(`${APPOINTMENT_REQUEST_API}?school=${encodeURIComponent(school)}&role=counselor`).then(r => r.json())
         ]);
         appointScheduleEvents = scheduleRes?.success ? (scheduleRes.data || []) : [];
-        appointBookedEvents   = apptRes?.success ? (apptRes.data || []).filter(r => r.status !== 'rejected') : [];
+        appointBookedEvents   = apptRes?.success ? (apptRes.data || []).filter(r => !APPOINT_INACTIVE_STATUSES.has(String(r.status || '').toLowerCase())) : [];
+        appointBookedSlots    = scheduleRes?.success ? (scheduleRes.booked || []) : [];
     } catch (error) {
         console.error('Failed to load calendar availability:', error);
         appointScheduleEvents = [];
         appointBookedEvents = [];
+        appointBookedSlots = [];
     }
 }
 
@@ -1735,11 +1742,13 @@ function renderAppointCalendar() {
 }
 
 // Each "Preferred time" option is a 30-minute slot. Same blocking rule as the
-// student booking page (getBlockedRangesForDate() in student/schedule.js):
+// student booking page (js/schedule-slots.js):
 // an all-day event blocks the whole day, a timed event blocks its own
-// window, and a pending or approved appointment blocks its slot.
+// window (one slot when it has no end time), and every appointment that
+// wasn't rejected or cancelled blocks its slot. api/appointment-request
+// checks the same rules again when the appointment is saved.
 const APPOINT_SLOT_MINUTES = 30;
-const APPOINT_SLOT_HOLDING_STATUSES = new Set(['pending', 'approved']);
+const APPOINT_INACTIVE_STATUSES = new Set(['rejected', 'cancelled']);
 
 function appointTimeToMinutes(timeStr) {
     const match = /^(\d{1,2}):(\d{2})/.exec(String(timeStr || '').trim());
@@ -1766,13 +1775,18 @@ function appointSlotOccupant(dateStr, timeStr) {
     for (const ev of schedule) {
         if (ev.allDay) return ev.title || 'All-day event';
         const evStart = appointTimeToMinutes(ev.time);
-        const evEnd   = appointTimeToMinutes(ev.endTime);
+        const evEnd   = appointTimeToMinutes(ev.endTime) ?? (evStart === null ? null : evStart + APPOINT_SLOT_MINUTES);
         if (evStart !== null && evEnd !== null && start < evEnd && end > evStart) return ev.title || 'Event';
     }
     for (const a of appts) {
-        if (!APPOINT_SLOT_HOLDING_STATUSES.has(String(a.status || '').toLowerCase())) continue;
+        if (APPOINT_INACTIVE_STATUSES.has(String(a.status || '').toLowerCase())) continue;
         const aStart = appointTimeToMinutes(a.preferred_time);
         if (aStart !== null && start < aStart + APPOINT_SLOT_MINUTES && end > aStart) return a.student_name || 'Another student';
+    }
+    for (const slot of appointBookedSlots) {
+        if (String(slot.date || '') !== dateStr) continue;
+        const sStart = appointTimeToMinutes(slot.time);
+        if (sStart !== null && start < sStart + APPOINT_SLOT_MINUTES && end > sStart) return 'Booked';
     }
     return null;
 }
@@ -2133,6 +2147,8 @@ async function finishAppointmentSubmission(modal, caseId, record, checked, date,
     if (failed.length) {
         console.error('Appointment request failures:', failed.map(f => f.reason?.message));
         showAlert(`${failed.length} appointment request${failed.length > 1 ? 's' : ''} failed: ${failed[0].reason?.message || 'Unknown error'}`, 'warning');
+        // A refused slot was taken meanwhile: reload so it shows as taken.
+        loadAppointCalendarData().then(renderAppointCalendar);
     }
 
     } finally {

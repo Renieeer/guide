@@ -45,7 +45,7 @@
                             </div>
                             <div>
                                 <h2>Appointment Calendar</h2>
-                                <p>Review counseling sessions and add events by day.</p>
+                                <p>See school events and your sessions. Click a free weekday to request an appointment.</p>
                             </div>
                         </div>
                         <div class="schedule-calendar-actions">
@@ -83,7 +83,7 @@
                                 <div class="form-group" style="margin-bottom: 15px;">
                                     <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #1e293b;">Preferred Date</label>
                                     <input type="date" id="appointmentDateInput" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px;">
-                                    <small style="color: #64748b; display: block; margin-top: 5px;">Times already blocked by a scheduled event or another student's appointment will be greyed out below</small>
+                                    <small style="color: #64748b; display: block; margin-top: 5px;">Times already taken by a school event or another student's appointment are greyed out below. One session a day.</small>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 15px;">
                                     <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #1e293b;">Preferred Time</label>
@@ -138,45 +138,6 @@
                     </div>
                 </div>
 
-                <!-- Appointment Details Modal -->
-                <div id="appointmentModal" class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2>Appointment Details</h2>
-                            <button class="modal-close" id="closeAppointmentModal">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="form-group">
-                                <label>Date</label>
-                                <input type="text" id="appointmentDate" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Time</label>
-                                <input type="text" id="appointmentTime" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Counselor</label>
-                                <input type="text" id="appointmentCounselor" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Location</label>
-                                <input type="text" id="appointmentLocation" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Status</label>
-                                <input type="text" id="appointmentStatus" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Notes</label>
-                                <textarea id="appointmentNotes" readonly rows="4"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-primary" id="closeAppointmentBtn">Close</button>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- View Event Modal (New Design) -->
                 <div id="viewEventModal" class="modal" style="display:none;">
                     <div class="modal-content view-event-modal-new">
@@ -203,12 +164,6 @@
                                     <p id="viewEventDateTime" class="event-detail-text"><span id="viewEventRange"></span><br><span id="viewEventTime"></span></p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="view-modal-footer">
-                            <button class="btn btn-outline-primary" id="editEventBtn" style="display:none;">
-                                <i class="bi bi-pencil-square"></i> Edit
-                            </button>
-                            <button class="btn btn-primary" id="seeMoreDetailsBtn" style="display:none;">See more details →</button>
                         </div>
                     </div>
                 </div>
@@ -266,6 +221,7 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/schedule-slots.js') }}?v={{ filemtime(public_path('js/schedule-slots.js')) }}"></script>
     <script src="{{ asset('pages/student/schedule.js') }}?v={{ filemtime(public_path('pages/student/schedule.js')) }}"></script>
 </body>
 </html>

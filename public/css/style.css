@@ -4519,6 +4519,30 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     margin: 2px 0 16px;
 }
 
+.schedule-modal-allday input:disabled + span {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* Event form note listing the counseling sessions already booked on the
+   picked day(s) (times only), whose times are greyed out in the pickers. */
+.schedule-booked-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: -4px 0 14px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fcf1e2;
+    color: #8a4f00;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+.schedule-booked-hint[hidden] {
+    display: none;
+}
+
 .schedule-create-modal input[type="text"],
 .schedule-create-modal input[type="date"],
 .schedule-create-modal input[type="time"],

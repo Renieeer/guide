@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Appointments;
 
 use App\Http\Controllers\Controller;
+use App\Support\ScheduleAvailability;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use mysqli;
 use Throwable;
@@ -91,7 +92,18 @@ class ScheduleEventsController extends Controller
 
                 $this->api_log('GET returned ' . count($rows) . ' rows for school=' . $school . ' month=' . $month);
 
-                $this->send_json(200, ['success' => true, 'data' => $rows]);
+                // Times already taken by a counseling session that month, for
+                // every page that adds events or books sessions to grey them
+                // out. Only date and time: who booked it isn't shown, so a
+                // coordinator can plan events without seeing students' sessions.
+                $booked = [];
+                if ($month !== '' && $school !== '') {
+                    foreach (ScheduleAvailability::activeBookings($conn, $school, $monthStart, $monthEnd) as $booking) {
+                        $booked[] = ['date' => $booking['preferred_date'], 'time' => $booking['preferred_time']];
+                    }
+                }
+
+                $this->send_json(200, ['success' => true, 'data' => $rows, 'booked' => $booked]);
             }
 
             if ($method === 'POST') {
@@ -169,38 +181,54 @@ class ScheduleEventsController extends Controller
             ) VALUES (?, ?, ?, ?, NULLIF(?, ''), ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?)
         ";
 
-                $stmt = $conn->prepare($insertSql);
-                if (!$stmt) {
-                    $this->api_log('POST prepare failed: ' . $conn->error . ' SQL: ' . $insertSql);
-                    $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
-                }
-
                 $dbEndDate = $endDate ?: '';
                 $dbLocation = $location;
                 $dbDescription = $description;
 
-                $stmt->bind_param(
-                    'sssssssisssss',
-                    $eventId,
-                    $title,
-                    $eventType,
-                    $startDate,
-                    $dbEndDate,
-                    $eventTime,
-                    $endTime,
-                    $allDay,
-                    $dbDescription,
-                    $dbLocation,
-                    $school,
-                    $createdBy,
-                    $role
-                );
+                // An event blocks its time for bookings, so it can't be put over
+                // a counseling session that's already booked. Checked and saved
+                // under the same per-school lock the booking endpoint uses.
+                $this->lock_schedule($conn, $school);
+                try {
+                    $this->reject_if_covers_bookings($conn, $school, [
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                        'event_time' => $eventTime,
+                        'end_time' => $endTime,
+                        'all_day' => $allDay,
+                    ]);
 
-                if (!$stmt->execute()) {
-                    $this->api_log('POST execute failed: ' . $stmt->error);
-                    $this->send_json(500, ['success' => false, 'message' => 'Failed to save event: ' . $stmt->error]);
+                    $stmt = $conn->prepare($insertSql);
+                    if (!$stmt) {
+                        $this->api_log('POST prepare failed: ' . $conn->error . ' SQL: ' . $insertSql);
+                        $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                    }
+
+                    $stmt->bind_param(
+                        'sssssssisssss',
+                        $eventId,
+                        $title,
+                        $eventType,
+                        $startDate,
+                        $dbEndDate,
+                        $eventTime,
+                        $endTime,
+                        $allDay,
+                        $dbDescription,
+                        $dbLocation,
+                        $school,
+                        $createdBy,
+                        $role
+                    );
+
+                    if (!$stmt->execute()) {
+                        $this->api_log('POST execute failed: ' . $stmt->error);
+                        $this->send_json(500, ['success' => false, 'message' => 'Failed to save event: ' . $stmt->error]);
+                    }
+                    $stmt->close();
+                } finally {
+                    ScheduleAvailability::unlock($conn, $school);
                 }
-                $stmt->close();
 
                 $this->api_log('POST saved event: ' . $eventId . ' school=' . $school . ' createdBy=' . $createdBy . ' role=' . $role);
 
@@ -280,38 +308,60 @@ class ScheduleEventsController extends Controller
             WHERE event_id = ? AND school_attended = ?
         ";
 
-                $stmt = $conn->prepare($updateSql);
-                if (!$stmt) {
-                    $this->api_log('PUT prepare failed: ' . $conn->error . ' SQL: ' . $updateSql);
-                    $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
-                }
-
-                $stmt->bind_param(
-                    'ssssssissss',
-                    $title,       // s
-                    $eventType,   // s
-                    $startDate,   // s
-                    $dbEndDate,   // s
-                    $eventTime,   // s
-                    $endTime,     // s
-                    $allDay,      // i
-                    $description, // s
-                    $location,    // s
-                    $eventId,     // s (WHERE)
-                    $school       // s (WHERE)
-                );
-
-                if (!$stmt->execute()) {
-                    $this->api_log('PUT execute failed: ' . $stmt->error);
-                    $this->send_json(500, ['success' => false, 'message' => 'Failed to update event: ' . $stmt->error]);
-                }
-
-                if ($stmt->affected_rows === 0) {
-                    $stmt->close();
+                // Looked up first so "not found" doesn't depend on affected_rows,
+                // which is 0 when an edit is saved without changing anything.
+                $existingStmt = $conn->prepare('SELECT start_date, end_date, event_time, end_time, all_day FROM schedule_events WHERE event_id = ? AND school_attended = ?');
+                $existingStmt->bind_param('ss', $eventId, $school);
+                $existingStmt->execute();
+                $existing = $existingStmt->get_result()->fetch_assoc();
+                $existingStmt->close();
+                if (!$existing) {
                     $this->send_json(404, ['success' => false, 'message' => 'Event not found']);
                 }
 
-                $stmt->close();
+                $this->lock_schedule($conn, $school);
+                try {
+                    // Moving or widening the event can't cover a booked session.
+                    // Sessions it already covered before this edit (booked before
+                    // the rule existed) don't stop a title or description fix.
+                    $this->reject_if_covers_bookings($conn, $school, [
+                        'start_date' => $startDate,
+                        'end_date' => $endDate,
+                        'event_time' => $eventTime,
+                        'end_time' => $endTime,
+                        'all_day' => $allDay,
+                    ], $existing);
+
+                    $stmt = $conn->prepare($updateSql);
+                    if (!$stmt) {
+                        $this->api_log('PUT prepare failed: ' . $conn->error . ' SQL: ' . $updateSql);
+                        $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                    }
+
+                    $stmt->bind_param(
+                        'ssssssissss',
+                        $title,       // s
+                        $eventType,   // s
+                        $startDate,   // s
+                        $dbEndDate,   // s
+                        $eventTime,   // s
+                        $endTime,     // s
+                        $allDay,      // i
+                        $description, // s
+                        $location,    // s
+                        $eventId,     // s (WHERE)
+                        $school       // s (WHERE)
+                    );
+
+                    if (!$stmt->execute()) {
+                        $this->api_log('PUT execute failed: ' . $stmt->error);
+                        $this->send_json(500, ['success' => false, 'message' => 'Failed to update event: ' . $stmt->error]);
+                    }
+
+                    $stmt->close();
+                } finally {
+                    ScheduleAvailability::unlock($conn, $school);
+                }
                 $this->api_log('PUT updated event: ' . $eventId . ' school=' . $school);
 
                 $this->send_json(200, [
@@ -371,6 +421,36 @@ class ScheduleEventsController extends Controller
         } catch (Throwable $e) {
             $this->send_json(500, ['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
         }
+    }
+
+    private function lock_schedule(mysqli $conn, string $school): void {
+        if (!ScheduleAvailability::lock($conn, $school)) {
+            $this->send_json(503, ['success' => false, 'message' => 'The schedule is busy right now. Please try again in a moment.']);
+        }
+    }
+
+    // Stops the request with a 409 when the event would cover a booked
+    // counseling session. With $previous (the event before an edit), sessions
+    // the old event already covered are let through. The message names only
+    // dates and times, never students.
+    private function reject_if_covers_bookings(mysqli $conn, string $school, array $event, ?array $previous = null): void {
+        $covered = ScheduleAvailability::bookingsUnderEvent($conn, $school, $event);
+        if ($previous !== null && !empty($covered)) {
+            $alreadyCovered = array_column(ScheduleAvailability::bookingsUnderEvent($conn, $school, $previous), 'request_id');
+            $covered = array_values(array_filter($covered, fn ($b) => !in_array($b['request_id'], $alreadyCovered, true)));
+        }
+        if (empty($covered)) {
+            return;
+        }
+        $count = count($covered);
+        $sessions = $count === 1 ? 'a counseling session that is' : "{$count} counseling sessions that are";
+        $this->send_json(409, [
+            'success' => false,
+            'conflict' => true,
+            'message' => "This event overlaps {$sessions} already booked: "
+                . ScheduleAvailability::describeBookingTimes($covered)
+                . '. Please choose a time or day outside them.',
+        ]);
     }
 
     private function api_log(string $line): void {

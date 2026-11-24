@@ -33,17 +33,11 @@
             border-collapse: collapse !important;
         }
 
-        /* Appointment/event details and the propose-change form open on top
-           of the Create Schedule modal's day list, so they stack above it
-           (and the edit form above the request details it is opened from). */
+        /* Appointment/event details open on top of the Create Schedule
+           modal's day list, so they stack above it. */
         #requestModal,
         #viewEventModal {
             z-index: 1010;
-        }
-
-        #editAppointmentModal,
-        #declineAppointmentModal {
-            z-index: 1020;
         }
     </style>
     <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
@@ -101,64 +95,6 @@
                     </div>
                 </div>
 
-                <!-- Edit Appointment Modal -->
-    <div id="editAppointmentModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Edit Appointment Request</h2>
-                <span class="modal-close" onclick="closeEditModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="editAppointmentForm">
-                    <div class="form-group">
-                        <label>Student Name</label>
-                        <input type="text" id="editStudentName" readonly style="background-color: #f5f5f5;">
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentDate">Date *</label>
-                        <input type="date" id="editAppointmentDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentTime">Time *</label>
-                        <select id="editAppointmentTime" required>
-                            <option value="">Select a time...</option>
-                            <optgroup label="Morning (8:00 AM - 12:00 PM)">
-                                <option value="08:00">8:00 AM</option>
-                                <option value="08:30">8:30 AM</option>
-                                <option value="09:00">9:00 AM</option>
-                                <option value="09:30">9:30 AM</option>
-                                <option value="10:00">10:00 AM</option>
-                                <option value="10:30">10:30 AM</option>
-                                <option value="11:00">11:00 AM</option>
-                                <option value="11:30">11:30 AM</option>
-                            </optgroup>
-                            <optgroup label="Afternoon (1:00 PM - 4:00 PM)">
-                                <option value="13:00">1:00 PM</option>
-                                <option value="13:30">1:30 PM</option>
-                                <option value="14:00">2:00 PM</option>
-                                <option value="14:30">2:30 PM</option>
-                                <option value="15:00">3:00 PM</option>
-                                <option value="15:30">3:30 PM</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentLocation">Location/Office</label>
-                        <input type="text" id="editAppointmentLocation" placeholder="e.g., Counseling Office, Room 101">
-                    </div>
-                    <div class="form-group">
-                        <label for="editAppointmentNotes">Notes</label>
-                        <textarea id="editAppointmentNotes" style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-success">Save Changes</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <!-- View Request Modal -->
     <div id="requestModal" class="modal" style="display: none;">
         <div class="modal-content view-event-modal-new">
@@ -213,46 +149,13 @@
                     </div>
                 </div>
             </div>
-                <div class="view-modal-footer">
+            <!-- The time was checked as free when it was booked, so a waiting
+                 request only needs approving; nothing to decline or move. -->
+            <div class="view-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRequestModal()">Close</button>
                 <button type="button" class="btn btn-success" id="approveRequestBtn" onclick="approveAppointmentFromModal()">
                     <i class="bi bi-check-lg"></i> Approve
                 </button>
-                <button type="button" class="btn btn-warning" id="proposeChangeBtn" onclick="proposeChangesFromModal()">
-                    <i class="bi bi-pencil-square"></i> Propose Changes
-                </button>
-                <button type="button" class="btn btn-danger" id="rejectRequestBtn" onclick="rejectRequestFromModal()">
-                    <i class="bi bi-x-lg"></i> Reject
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Decline Appointment Modal -->
-    <div id="declineAppointmentModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Decline Appointment Request</h2>
-                <span class="modal-close" onclick="closeDeclineModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="declineAppointmentForm">
-                    <div class="form-group">
-                        <label>Student Name</label>
-                        <input type="text" id="declineStudentName" readonly style="background-color: #f5f5f5;">
-                    </div>
-                    <div class="form-group">
-                        <label for="declineReason">Reason for Declining *</label>
-                        <textarea id="declineReason" placeholder="Explain why you are declining this appointment request..." required style="min-height: 100px;"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="suggestAlternative">Suggest Alternative (Optional)</label>
-                        <textarea id="suggestAlternative" placeholder="Suggest a different time or provide guidance on next steps..." style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-danger"><i class="bi bi-x-lg"></i> Decline Request</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeDeclineModal()">Cancel</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -312,6 +215,7 @@
                             <input type="checkbox" id="modalEventAllDay">
                             <span>All Day</span>
                         </label>
+                        <p class="schedule-booked-hint" id="modalEventBookedHint" hidden></p>
 
                         <div id="modalEventTimeFields">
                             <div class="form-row">
@@ -395,6 +299,7 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/schedule-slots.js') }}?v={{ filemtime(public_path('js/schedule-slots.js')) }}"></script>
     <script src="{{ asset('pages/counselor/schedule.js') }}?v={{ filemtime(public_path('pages/counselor/schedule.js')) }}"></script>
 </body>
 </html>

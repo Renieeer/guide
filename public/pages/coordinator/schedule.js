@@ -1,22 +1,33 @@
-// Schedule Script
+// Coordinator Schedule Script
+//
+// Coordinators plan school events here (meetings, training, reviews).
+// Students' counseling sessions belong to the counselors: they aren't listed
+// on this page and can't be booked or approved from it. An event can't be put
+// over a booked session either (api/schedule-events refuses it), so the event
+// form greys out the times already taken, without saying whose they are
+// (js/schedule-slots.js).
 
 let currentCalendarDate = new Date();
 let selectedScheduleDate = '';
 let scheduleEventsCache = [];
-const SCHEDULE_API_URL = '../../api/schedule-events';
-let currentEditingAppointmentId = null;
-let currentAppointmentRequest = null;
 let editingScheduleEventId = null; // set when createScheduleModal is opened to edit an existing event
-
-function capitalizeFirst(str) {
-    if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
+let currentViewingEventId = '';
+const SCHEDULE_API_URL = '../../api/schedule-events';
 
 function getTodayDateStr() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return ScheduleSlots.todayStr();
 }
+
+window.isWeekend = function(dateStr) {
+    const date = new Date((dateStr || '') + 'T00:00:00');
+    const dayOfWeek = isNaN(date.getTime()) ? -1 : date.getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6;
+};
+
+window.getWeekendName = function(dateStr) {
+    const date = new Date((dateStr || '') + 'T00:00:00');
+    return date.getDay() === 0 ? 'Sunday' : 'Saturday';
+};
 
 function getCurrentUser() {
     try {
@@ -40,18 +51,25 @@ function getCurrentSchool() {
     }
 }
 
-function getCurrentRole() {
-    const user = getCurrentUser();
-    let role = String(user.role || '').toLowerCase();
-    if (!role) {
-        try {
-            const fallback = JSON.parse(localStorage.getItem('currentUser') || '{}');
-            role = String(fallback.role || '').toLowerCase();
-        } catch (err) {
-            role = '';
-        }
-    }
-    return role;
+function viewMonth() {
+    return `${currentCalendarDate.getFullYear()}-${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatLongDate(dateStr) {
+    return new Date(`${ScheduleSlots.datePart(dateStr)}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatShortDate(dateStr) {
+    return new Date(`${ScheduleSlots.datePart(dateStr)}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatEventTime(event) {
+    const span = ScheduleSlots.eventWindow(event);
+    if (span === 'all') return 'All Day';
+    if (!span) return '-';
+    return event.endTime
+        ? `${ScheduleSlots.formatTime(event.time)} – ${ScheduleSlots.formatTime(event.endTime)}`
+        : ScheduleSlots.formatTime(event.time);
 }
 
 async function refreshScheduleEvents() {
@@ -60,15 +78,8 @@ async function refreshScheduleEvents() {
         scheduleEventsCache = [];
         return;
     }
-
-    const month = `${currentCalendarDate.getFullYear()}-${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}`;
-    const response = await fetch(`${SCHEDULE_API_URL}?school=${encodeURIComponent(school)}&month=${encodeURIComponent(month)}`);
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to load schedule events');
-    }
-
-    scheduleEventsCache = Array.isArray(result.data) ? result.data : [];
+    const data = await ScheduleSlots.loadMonth(viewMonth(), { school, force: true });
+    scheduleEventsCache = data.events;
 }
 
 async function refreshScheduleEventsSafely() {
@@ -82,32 +93,21 @@ async function refreshScheduleEventsSafely() {
 
 async function initSchedulePage() {
     initPage();
-    await refreshGradeScope();
     setupCalendarControls();
-    await loadScheduleEvents();
-    loadAppointmentRequests();
     setupCreateScheduleModal();
-    setupRequestModal();
+    await loadScheduleEvents();
 }
 
 function setupCalendarControls() {
-    document.getElementById('schedulePrevMonth')?.addEventListener('click', async () => {
-        currentCalendarDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() - 1, 1);
-        await refreshScheduleEventsSafely();
-        renderScheduleCalendar();
-    });
-
-    document.getElementById('scheduleNextMonth')?.addEventListener('click', async () => {
-        currentCalendarDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 1);
-        await refreshScheduleEventsSafely();
-        renderScheduleCalendar();
-    });
-
-    document.getElementById('scheduleTodayBtn')?.addEventListener('click', async () => {
-        currentCalendarDate = new Date();
-        await refreshScheduleEventsSafely();
-        renderScheduleCalendar();
-    });
+    const goTo = async (date) => {
+        currentCalendarDate = date;
+        await loadScheduleEvents();
+    };
+    document.getElementById('schedulePrevMonth')?.addEventListener('click', () =>
+        goTo(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() - 1, 1)));
+    document.getElementById('scheduleNextMonth')?.addEventListener('click', () =>
+        goTo(new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 1)));
+    document.getElementById('scheduleTodayBtn')?.addEventListener('click', () => goTo(new Date()));
 }
 
 // Start/End Time only make sense for a timed block within the day — an
@@ -132,27 +132,9 @@ function setupCreateScheduleModal() {
         }
     });
     document.getElementById('modalEventAllDay')?.addEventListener('change', updateModalTimeFieldsVisibility);
-
+    document.getElementById('modalEventStartTime')?.addEventListener('change', updateEventTimeAvailability);
+    document.getElementById('modalEventEnd')?.addEventListener('change', updateEventTimeAvailability);
     document.getElementById('createScheduleModalForm')?.addEventListener('submit', submitCreateScheduleModal);
-}
-
-function setupRequestModal() {
-    const requestModal = document.getElementById('requestModal');
-    if (!requestModal) return;
-
-    // Close modal when clicking the X button
-    requestModal.querySelector('.modal-close')?.addEventListener('click', closeRequestModal);
-
-    // Close modal when clicking outside the modal content
-    requestModal.addEventListener('click', (event) => {
-        if (event.target === requestModal) {
-            closeRequestModal();
-        }
-    });
-}
-
-function getScheduleEvents() {
-    return scheduleEventsCache;
 }
 
 function formatMonthYear(date) {
@@ -161,107 +143,55 @@ function formatMonthYear(date) {
 
 // escapeHtml() is the shared copy in js/utils.js.
 
-function getEventColor(eventId) {
-    const colors = [
-        { bg: '#dbeafe', text: '#1d4ed8' },
-        { bg: '#dcfce7', text: '#15803d' },
-        { bg: '#fef3c7', text: '#b45309' },
-        { bg: '#fee2e2', text: '#b91c1c' },
-        { bg: '#fecccc', text: '#c2185b' },
-        { bg: '#e9d5ff', text: '#7c3aed' },
-        { bg: '#cffafe', text: '#0891b2' },
-        { bg: '#fce7f3', text: '#be185d' },
-        { bg: '#fed7aa', text: '#92400e' },
-        { bg: '#d1fae5', text: '#047857' }
-    ];
-    const hash = (eventId || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-}
-
-function getEventTypeClass(type) {
-    const normalized = String(type || '').toLowerCase();
-    if (normalized.includes('meeting') || normalized.includes('review')) return 'event-meeting';
-    if (normalized.includes('training')) return 'event-training';
-    if (normalized.includes('event')) return 'event-approved';
-    if (normalized.includes('cancel')) return 'event-cancelled';
-    return 'event-default';
-}
-
 function renderScheduleCalendar() {
     const calendarEl = document.getElementById('scheduleCalendar');
     const monthEl = document.getElementById('scheduleCalendarMonth');
     if (!calendarEl || !monthEl) return;
 
-    const events = getScheduleEvents();
-    const today = new Date();
+    const today = getTodayDateStr();
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const startDay = firstDay.getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
-    const totalCells = 42;
+    // Only as many weeks as this month spans (4-6).
+    const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
 
     monthEl.textContent = formatMonthYear(firstDay);
 
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     let html = '<div class="schedule-calendar-grid">';
-    dayNames.forEach(day => {
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
         html += `<div class="schedule-calendar-weekday">${day}</div>`;
     });
 
-    function extractDatePart(val) {
-        if (!val) return '';
-        return String(val).split('T')[0].split(' ')[0];
-    }
-
-    function isDateInEvent(event, d) {
-        const start = extractDatePart(event.date || '');
-        const end = extractDatePart(event.endDate || '') || start;
-        if (!start) return false;
-        return d >= start && d <= end;
-    }
-
     for (let index = 0; index < totalCells; index++) {
-        let cellDay = index - startDay + 1;
-        let cellMonth = month;
-        let cellYear = year;
-        let isOutside = false;
+        const cellDay = index - startDay + 1;
 
-        if (index < startDay) {
-            cellDay = daysInPrevMonth - startDay + index + 1;
-            cellMonth = month - 1;
-            if (cellMonth < 0) {
-                cellMonth = 11;
-                cellYear -= 1;
-            }
-            isOutside = true;
-        } else if (cellDay > daysInMonth) {
-            cellDay = cellDay - daysInMonth;
-            cellMonth = month + 1;
-            if (cellMonth > 11) {
-                cellMonth = 0;
-                cellYear += 1;
-            }
-            isOutside = true;
+        // Days from the neighbouring months only pad out the first/last week
+        // and can't be clicked; their events show when that month is opened.
+        if (cellDay < 1 || cellDay > daysInMonth) {
+            const outside = cellDay < 1 ? new Date(year, month - 1, daysInPrevMonth + cellDay) : new Date(year, month + 1, cellDay - daysInMonth);
+            const showMonth = index === 0 || outside.getDate() === 1;
+            const label = showMonth
+                ? `${outside.toLocaleDateString('en-US', { month: 'short' })} ${outside.getDate()}`
+                : outside.getDate();
+            html += `<div class="schedule-calendar-day is-outside is-filler" aria-hidden="true">
+                <div class="schedule-day-number${showMonth ? ' has-month' : ''}">${label}</div>
+            </div>`;
+            continue;
         }
 
-        const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(cellDay).padStart(2, '0')}`;
-        const dayEvents = events.filter(event => isDateInEvent(event, dateStr));
-        const isToday = cellDay === today.getDate() && cellMonth === today.getMonth() && cellYear === today.getFullYear();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(cellDay).padStart(2, '0')}`;
+        const dayEvents = scheduleEventsCache.filter(event => ScheduleSlots.eventCoversDate(event, dateStr));
 
-        html += `<div class="schedule-calendar-day ${isOutside ? 'is-outside' : ''} ${isToday ? 'is-today' : ''}" data-date="${dateStr}" onclick="if(event.target.closest('.schedule-event-block')) event.stopPropagation(); else openCreateScheduleModal('${dateStr}')">
+        html += `<div class="schedule-calendar-day ${dateStr === today ? 'is-today' : ''}" data-date="${dateStr}">
             <div class="schedule-day-number">${cellDay}</div>
             <div class="schedule-event-list">`;
 
         dayEvents.forEach(event => {
-            const isAppointment = event.kind === 'appointment' || !!event.student_id || !!event.student_name;
-            const title = escapeHtml(isAppointment ? `Appointment: ${event.title || 'Student'}` : (event.title || 'Schedule'));
-            const color = getEventColor(event.id);
-            const style = isAppointment
-                ? `background: linear-gradient(135deg, ${color.bg} 0%, #ffffff 100%); color: ${color.text}; border-left: 4px solid ${color.text}; font-weight: 700;`
-                : `background: ${color.bg}; color: ${color.text};`;
-            html += `<div class="schedule-event-block" data-event-id="${escapeHtml(event.id)}" onclick="openViewEventModal('${jsStr(event.id)}')" title="${title}" style="${escapeHtml(style)}">${title}</div>`;
+            const title = escapeHtml(event.title || 'Event');
+            html += `<div class="schedule-event-block cat-event" data-event-id="${escapeHtml(event.id)}" title="Event: ${title}"><i class="bi bi-calendar2-week"></i><span class="chip-label">${title}</span></div>`;
         });
 
         html += '</div></div>';
@@ -272,60 +202,98 @@ function renderScheduleCalendar() {
     if (!calendarEl.dataset.listenerAttached) {
         calendarEl.addEventListener('click', function(e) {
             const chip = e.target.closest('.schedule-event-block');
-            if (!chip) return;
-            const id = chip.getAttribute('data-event-id');
-            openViewEventModal(id || '');
+            if (chip) {
+                openViewEventModal(chip.getAttribute('data-event-id') || '');
+                return;
+            }
+            const dayCell = e.target.closest('.schedule-calendar-day');
+            if (dayCell && dayCell.dataset.date) openCreateScheduleModal(dayCell.dataset.date);
         });
         calendarEl.dataset.listenerAttached = '1';
     }
 }
 
+// ===== EVENT FORM: keep events off booked sessions =====
+
+// Greys out the event times that would cover a booked counseling session on
+// the event's day(s). Sessions the event already covered before this edit
+// don't count, so fixing an older event's title still works (the server
+// allows that too).
+async function updateEventTimeAvailability() {
+    const startDate = selectedScheduleDate;
+    if (!startDate) return;
+    const endInput = document.getElementById('modalEventEnd')?.value || '';
+    const lastDate = endInput > startDate ? endInput : startDate;
+
+    try {
+        await ScheduleSlots.loadRange(startDate, lastDate, { school: getCurrentSchool() });
+    } catch (error) {
+        console.warn('Could not load booked times:', error);
+    }
+    if (selectedScheduleDate !== startDate) return; // modal moved on meanwhile
+
+    let bookings = ScheduleSlots.bookedBetween(startDate, lastDate);
+    if (editingScheduleEventId) {
+        const original = scheduleEventsCache.find(ev => ev.id === editingScheduleEventId);
+        if (original) {
+            const alreadyCovered = new Set(ScheduleSlots.bookingsUnderEvent(original, bookings));
+            bookings = bookings.filter(b => !alreadyCovered.has(b));
+        }
+    }
+
+    ScheduleSlots.applyEventTimeAvailability({
+        startSelect: document.getElementById('modalEventStartTime'),
+        endSelect: document.getElementById('modalEventEndTime'),
+        allDayInput: document.getElementById('modalEventAllDay'),
+        hintEl: document.getElementById('modalEventBookedHint')
+    }, bookings);
+}
+
+function fillScheduleModal({ heading, date, event }) {
+    const modal = document.getElementById('createScheduleModal');
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    };
+
+    const modalTitle = modal?.querySelector('.modal-header h2');
+    if (modalTitle) modalTitle.textContent = heading;
+    set('modalEventStart', formatLongDate(date));
+    set('modalEventTitle', event?.title || '');
+    set('modalEventDescription', event?.description || '');
+    set('modalEventEnd', ScheduleSlots.datePart(event?.endDate));
+    const endInput = document.getElementById('modalEventEnd');
+    if (endInput) endInput.min = date;
+    const allDayInput = document.getElementById('modalEventAllDay');
+    if (allDayInput) allDayInput.checked = !!event?.allDay;
+    set('modalEventLabel', event?.type || 'None');
+    set('modalEventStartTime', event && !event.allDay ? (event.time || '') : '');
+    set('modalEventEndTime', event && !event.allDay ? (event.endTime || '') : '');
+    updateModalTimeFieldsVisibility();
+    updateEventTimeAvailability();
+
+    if (modal) modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('modalEventTitle')?.focus(), 50);
+}
+
 function openCreateScheduleModal(dateStr) {
-    // Check if the date has already passed
     if (dateStr < getTodayDateStr()) {
         showAlert('You cannot schedule an event for a date that has already passed.', 'error');
+        return;
+    }
+    if (isWeekend(dateStr)) {
+        showAlert(`${getWeekendName(dateStr)} is not available. Please select a weekday.`, 'error');
         return;
     }
 
     editingScheduleEventId = null;
     selectedScheduleDate = dateStr;
-    const modal = document.getElementById('createScheduleModal');
-    const modalTitle = modal?.querySelector('.modal-header h2');
-    const startInput = document.getElementById('modalEventStart');
-    const titleInput = document.getElementById('modalEventTitle');
-    const descriptionInput = document.getElementById('modalEventDescription');
-    const endInput = document.getElementById('modalEventEnd');
-    const allDayInput = document.getElementById('modalEventAllDay');
-    const labelSelect = document.getElementById('modalEventLabel');
-    const startTimeInput = document.getElementById('modalEventStartTime');
-    const endTimeInput = document.getElementById('modalEventEndTime');
-
-    if (modalTitle) modalTitle.textContent = 'Create Schedule';
-    if (startInput) {
-        startInput.value = `${dateStr} 00:00`;
-    }
-    if (titleInput) titleInput.value = '';
-    if (descriptionInput) descriptionInput.value = '';
-    if (endInput) {
-        endInput.value = '';
-        endInput.min = dateStr;
-    }
-    if (allDayInput) allDayInput.checked = false;
-    if (labelSelect) labelSelect.value = 'None';
-    if (startTimeInput) startTimeInput.value = '';
-    if (endTimeInput) endTimeInput.value = '';
-    updateModalTimeFieldsVisibility();
-
-    if (modal) {
-        modal.style.display = 'flex';
-    }
-
-    setTimeout(() => titleInput?.focus(), 50);
+    fillScheduleModal({ heading: 'Create Schedule', date: dateStr, event: null });
 }
 
 // Opens the same modal pre-filled with an existing event's data so editing
-// title/description updates that one event record (covering its whole date
-// range) instead of creating a duplicate.
+// updates that one event record (covering its whole date range) instead of
+// creating a duplicate.
 function openEditScheduleModal(eventId) {
     const event = scheduleEventsCache.find(e => e.id === eventId);
     if (!event) {
@@ -334,45 +302,17 @@ function openEditScheduleModal(eventId) {
     }
 
     editingScheduleEventId = eventId;
-    selectedScheduleDate = event.date || '';
-
-    const modal = document.getElementById('createScheduleModal');
-    const modalTitle = modal?.querySelector('.modal-header h2');
-    const startInput = document.getElementById('modalEventStart');
-    const titleInput = document.getElementById('modalEventTitle');
-    const descriptionInput = document.getElementById('modalEventDescription');
-    const endInput = document.getElementById('modalEventEnd');
-    const allDayInput = document.getElementById('modalEventAllDay');
-    const labelSelect = document.getElementById('modalEventLabel');
-    const startTimeInput = document.getElementById('modalEventStartTime');
-    const endTimeInput = document.getElementById('modalEventEndTime');
-
-    if (modalTitle) modalTitle.textContent = 'Edit Schedule';
-    if (startInput) startInput.value = `${event.date || ''} ${event.allDay ? '00:00' : (event.time || '00:00')}`;
-    if (titleInput) titleInput.value = event.title || '';
-    if (descriptionInput) descriptionInput.value = event.description || '';
-    if (endInput) {
-        endInput.value = event.endDate || '';
-        endInput.min = event.date || '';
-    }
-    if (allDayInput) allDayInput.checked = !!event.allDay;
-    if (labelSelect) labelSelect.value = event.type || 'None';
-    if (startTimeInput) startTimeInput.value = event.allDay ? '' : (event.time || '');
-    if (endTimeInput) endTimeInput.value = event.allDay ? '' : (event.endTime || '');
-    updateModalTimeFieldsVisibility();
+    selectedScheduleDate = ScheduleSlots.datePart(event.date);
 
     const viewModal = document.getElementById('viewEventModal');
     if (viewModal) viewModal.style.display = 'none';
 
-    if (modal) modal.style.display = 'flex';
-    setTimeout(() => titleInput?.focus(), 50);
+    fillScheduleModal({ heading: 'Edit Schedule', date: selectedScheduleDate, event });
 }
 
 function closeCreateScheduleModal() {
     const modal = document.getElementById('createScheduleModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
     selectedScheduleDate = '';
     editingScheduleEventId = null;
 }
@@ -413,8 +353,6 @@ async function submitCreateScheduleModal(e) {
         return;
     }
 
-    const user = getCurrentUser();
-    const school = getCurrentSchool();
     const event = {
         id: isEditing ? editingScheduleEventId : generateId(),
         title,
@@ -425,11 +363,7 @@ async function submitCreateScheduleModal(e) {
         endDate: end || '',
         allDay,
         description,
-        location: 'Guidance Office',
-        createdAt: new Date().toISOString(),
-        school,
-        createdBy: String(user.id || ''),
-        createdRole: String(user.role || '')
+        location: 'Guidance Office'
     };
 
     try {
@@ -439,6 +373,16 @@ async function submitCreateScheduleModal(e) {
             body: JSON.stringify(event)
         });
         const result = await response.json();
+
+        // A session was booked into that time meanwhile: reload so the form
+        // greys it out, and keep the form open to pick another time.
+        if (response.status === 409 || result.conflict) {
+            showAlert(result.message || 'That time overlaps a booked counseling session. Please choose another time.', 'error');
+            ScheduleSlots.forgetCache();
+            await loadScheduleEvents();
+            updateEventTimeAvailability();
+            return;
+        }
         if (!response.ok || !result.success) {
             throw new Error(result.message || 'Unable to save schedule event');
         }
@@ -452,80 +396,82 @@ async function submitCreateScheduleModal(e) {
     }
 }
 
+// Loads the month on screen and redraws the calendar and the events table.
 async function loadScheduleEvents() {
     await refreshScheduleEventsSafely();
-    const events = [...getScheduleEvents()];
+    renderScheduleCalendar();
+
+    const tableTitle = document.getElementById('scheduleTableTitle');
+    if (tableTitle) tableTitle.textContent = `Events in ${formatMonthYear(currentCalendarDate)}`;
+
     const tbody = document.getElementById('scheduleTableBody');
+    if (!tbody) return;
+
+    const events = [...scheduleEventsCache].sort((a, b) => {
+        const byDate = ScheduleSlots.datePart(a.date).localeCompare(ScheduleSlots.datePart(b.date));
+        if (byDate !== 0) return byDate;
+        // All-day events first, then by start time.
+        const key = ev => (ScheduleSlots.eventWindow(ev) === 'all' ? '' : String(ev.time || ''));
+        return key(a).localeCompare(key(b));
+    });
 
     if (events.length === 0) {
         tbody.innerHTML = `<tr>
-            <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No scheduled events yet</td>
+            <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No events this month yet. Click a weekday on the calendar to add one.</td>
         </tr>`;
-        renderScheduleCalendar();
         return;
     }
 
-    // Sort by date
-    events.sort((a, b) => {
-        const dateA = new Date(a.date + ' ' + a.time);
-        const dateB = new Date(b.date + ' ' + b.time);
-        return dateA - dateB;
-    });
-
-    tbody.innerHTML = events.map(event => `
+    tbody.innerHTML = events.map(event => {
+        const start = ScheduleSlots.datePart(event.date);
+        const end = ScheduleSlots.datePart(event.endDate);
+        const dates = end && end !== start ? `${formatShortDate(start)} – ${formatShortDate(end)}` : formatShortDate(start);
+        return `
         <tr>
             <td><strong>${escapeHtml(event.title)}</strong></td>
-            <td>${escapeHtml(event.type)}</td>
-            <td>${formatDate(event.date)}</td>
-            <td>${escapeHtml(event.time)}</td>
+            <td>${escapeHtml(event.type && event.type !== 'None' ? event.type : '-')}</td>
+            <td>${escapeHtml(dates)}</td>
+            <td>${escapeHtml(formatEventTime(event))}</td>
             <td>${escapeHtml(event.location || '-')}</td>
             <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="openEditScheduleModal('${jsStr(event.id)}')">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteEvent('${jsStr(event.id)}')">Delete</button>
             </td>
-        </tr>
-    `).join('');
-
-    renderScheduleCalendar();
+        </tr>`;
+    }).join('');
 }
 
-async function deleteEvent(eventId) {
-    if (confirm('Are you sure you want to delete this event?')) {
+function deleteEvent(eventId) {
+    const event = scheduleEventsCache.find(e => e.id === eventId);
+    confirmAction(`Delete "${event?.title || 'this event'}"? Its time becomes free for bookings again.`, async () => {
         try {
-            const school = getCurrentSchool();
-            const role = getCurrentRole();
-            const response = await fetch(`${SCHEDULE_API_URL}?id=${encodeURIComponent(eventId)}&school=${encodeURIComponent(school)}&role=${encodeURIComponent(role)}`, {
-                method: 'DELETE'
-            });
+            const response = await fetch(`${SCHEDULE_API_URL}?id=${encodeURIComponent(eventId)}`, { method: 'DELETE' });
             const result = await response.json();
             if (!response.ok || !result.success) {
                 throw new Error(result.message || 'Unable to delete schedule event');
             }
-
             showAlert('Event deleted successfully!', 'success');
             await loadScheduleEvents();
         } catch (error) {
             console.error('Error deleting event:', error);
             showAlert(error.message || 'Unable to delete schedule event', 'error');
         }
-    }
+    }, { title: 'Delete event', confirmLabel: 'Delete', busyLabel: 'Deleting...' });
 }
 
 function openViewEventModal(eventId) {
-    const events = getScheduleEvents();
-    const ev = events.find(e => e.id === eventId);
+    const ev = scheduleEventsCache.find(e => e.id === eventId);
     if (!ev) return;
 
-    const start = ev.date || '';
-    const end = ev.endDate || '';
-    function formatRange(s, e) {
-        if (!s) return '';
-        if (!e || e === s) return new Date(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        return `${new Date(s).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${new Date(e).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`;
-    }
+    const start = ScheduleSlots.datePart(ev.date);
+    const end = ScheduleSlots.datePart(ev.endDate);
+    const range = !end || end === start
+        ? formatLongDate(start)
+        : `${new Date(`${start}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${formatLongDate(end)}`;
 
-    // Create improved modal dynamically if not present
+    // Create the modal the first time it's needed.
     let modal = document.getElementById('viewEventModal');
-    if (!modal || !modal.innerHTML || modal.innerHTML.trim() === '') {
+    if (!modal) {
         modal = document.createElement('div');
         modal.id = 'viewEventModal';
         modal.className = 'modal';
@@ -555,328 +501,25 @@ function openViewEventModal(eventId) {
                     <button class="btn btn-outline-primary" id="viewEventEditBtn">
                         <i class="bi bi-pencil"></i> Edit
                     </button>
-                    <button class="btn btn-primary" id="viewEventSeeMoreBtn">See more details →</button>
+                    <button class="btn btn-primary" id="viewEventCloseBtn">Close</button>
                 </div>
             </div>`;
         document.body.appendChild(modal);
         document.getElementById('viewEventClose')?.addEventListener('click', () => modal.style.display = 'none');
-        document.getElementById('viewEventSeeMoreBtn')?.addEventListener('click', () => modal.style.display = 'none');
-        document.getElementById('viewEventEditBtn')?.addEventListener('click', editViewingEvent);
+        document.getElementById('viewEventCloseBtn')?.addEventListener('click', () => modal.style.display = 'none');
+        document.getElementById('viewEventEditBtn')?.addEventListener('click', () => {
+            if (currentViewingEventId) openEditScheduleModal(currentViewingEventId);
+        });
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     }
 
     currentViewingEventId = ev.id || '';
     document.getElementById('viewEventTitle').textContent = ev.title || 'Event';
-    document.getElementById('viewEventRange').textContent = formatRange(start, end);
-    document.getElementById('viewEventTime').textContent = ev.allDay ? 'All Day' : (ev.time || '');
+    document.getElementById('viewEventRange').textContent = range;
+    document.getElementById('viewEventTime').textContent = formatEventTime(ev);
     document.getElementById('viewEventDescription').textContent = ev.description || 'No description';
 
     modal.style.display = 'flex';
 }
 
-let currentViewingEventId = '';
-
-function editViewingEvent() {
-    if (!currentViewingEventId) return;
-    openEditScheduleModal(currentViewingEventId);
-}
-
-function loadAppointmentRequests() {
-    let user = JSON.parse(sessionStorage.getItem('user'));
-    
-    // Fallback to localStorage if sessionStorage is empty or invalid
-    if (!user || !user.school_attended) {
-        try {
-            user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        } catch (err) {
-            console.error('User or school not found');
-            return;
-        }
-    }
-    
-    if (!user || !user.school_attended) {
-        console.error('User or school not found');
-        return;
-    }
-
-    const apiUrl = `../../api/appointment-request?school=${encodeURIComponent(user.school_attended)}&role=coordinator&grade_scope=${encodeURIComponent(getCurrentGradeScope())}`;
-
-    fetch(apiUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(result => {
-            const tbody = document.getElementById('appointmentRequestsBody');
-            
-            if (!result.success || !result.data || result.data.length === 0) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests received</td>
-                </tr>`;
-                return;
-            }
-
-            // Filter for pending, proposed_change, and approved statuses (keep approved as history)
-            const allRequests = result.data.filter(r => r.status === 'pending' || r.status === 'proposed_change' || r.status === 'approved');
-            appointmentCalendarEvents = allRequests.map(request => ({
-                id: request.id,
-                kind: 'appointment',
-                date: request.preferred_date,
-                title: request.student_name,
-                type: request.status,
-                time: request.preferred_time,
-                student_id: request.student_id,
-                student_name: request.student_name,
-                reason: request.reason,
-                notes: request.notes,
-                status: request.status,
-                counselor_notes: request.counselor_notes,
-                preferred_date: request.preferred_date,
-                preferred_time: request.preferred_time,
-                school_attended: request.school_attended
-            }));
-
-            if (allRequests.length === 0) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests</td>
-                </tr>`;
-                return;
-            }
-
-            tbody.innerHTML = allRequests.map(request => {
-                let statusBadge = '';
-                if (request.status === 'approved') {
-                    statusBadge = '<span class="badge" style="background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%); color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px;">✓ Approved</span>';
-                } else if (request.status === 'proposed_change') {
-                    statusBadge = '<span class="badge" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px;">📝 Needs Change</span>';
-                } else {
-                    statusBadge = '<span class="badge" style="background: linear-gradient(135deg, #FFB347 0%, #FFA500 100%); color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px;">⏳ Pending</span>';
-                }
-
-                return `
-                    <tr>
-                        <td><strong>${escapeHtml(request.student_name)}</strong></td>
-                        <td>${formatDate(request.preferred_date)}</td>
-                        <td>${escapeHtml(request.preferred_time)}</td>
-                        <td>${escapeHtml(capitalizeFirst(request.reason.replace(/-/g, ' ')))}</td>
-                        <td>${statusBadge}</td>
-                        <td>
-                            <button class="btn btn-sm btn-info" onclick="viewRequestDetails('${jsStr(request.id)}')"><i class="bi bi-eye"></i> View</button>
-                            ${request.status !== 'approved' ? `<button class="btn btn-sm btn-success" onclick="approveAppointment('${jsStr(request.id)}')"><i class="bi bi-check-lg"></i> Approve</button>
-                            <button class="btn btn-sm btn-warning" onclick="proposeChanges('${jsStr(request.id)}')"><i class="bi bi-pencil"></i> Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="rejectRequest('${jsStr(request.id)}')"><i class="bi bi-x-lg"></i> Reject</button>` : ''}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        })
-        .catch(error => {
-            console.error('Error loading appointment requests:', error);
-            const tbody = document.getElementById('appointmentRequestsBody');
-            if (tbody) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #f00;">Error: ${escapeHtml(error.message)}</td>
-                </tr>`;
-            }
-        });
-}
-
-function viewRequestDetails(requestId) {
-    // Find the request in the current data
-    const apiUrl = `../../api/appointment-request?school=${encodeURIComponent(getCurrentSchool())}&role=coordinator&grade_scope=${encodeURIComponent(getCurrentGradeScope())}`;
-    
-    fetch(apiUrl)
-        .then(response => response.json())
-        .then(result => {
-            if (!result.success || !result.data) return;
-            
-            const request = result.data.find(r => r.id === requestId);
-            if (!request) {
-                showAlert('Request not found', 'error');
-                return;
-            }
-
-            currentEditingAppointmentId = requestId;
-            currentAppointmentRequest = request;
-
-            // Populate modal
-            document.getElementById('requestModalTitle').textContent = `Appointment Request - ${request.student_name}`;
-            document.getElementById('requestStudentName').textContent = request.student_name || 'Unknown';
-            document.getElementById('requestReason').textContent = (request.reason || 'Not specified').replace(/-/g, ' ');
-            document.getElementById('requestDateTime').textContent = `${new Date(request.preferred_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${request.preferred_time}`;
-            
-            const statusBadgeMap = {
-                'pending': '⏳ Pending',
-                'approved': '✓ Approved',
-                'proposed_change': '📝 Needs Change',
-                'rejected': '✗ Rejected'
-            };
-            document.getElementById('requestStatus').textContent = statusBadgeMap[request.status] || request.status;
-
-            const notesSection = document.getElementById('requestNotesSection');
-            if (request.notes && request.notes.trim()) {
-                document.getElementById('requestNotes').textContent = request.notes;
-                if (notesSection) notesSection.style.display = 'flex';
-            } else {
-                if (notesSection) notesSection.style.display = 'none';
-            }
-
-            // Show/hide action buttons based on status
-            const approveBtn = document.getElementById('approveRequestBtn');
-            const proposeBtn = document.getElementById('proposeChangeBtn');
-            const rejectBtn = document.getElementById('rejectRequestBtn');
-            
-            if (request.status === 'approved') {
-                if (approveBtn) approveBtn.style.display = 'none';
-                if (proposeBtn) proposeBtn.style.display = 'none';
-                if (rejectBtn) rejectBtn.style.display = 'none';
-            } else {
-                if (approveBtn) approveBtn.style.display = 'inline-block';
-                if (proposeBtn) proposeBtn.style.display = 'inline-block';
-                if (rejectBtn) rejectBtn.style.display = 'inline-block';
-            }
-
-            const modal = document.getElementById('requestModal');
-            if (modal) modal.style.display = 'flex';
-        })
-        .catch(error => {
-            console.error('Error loading request details:', error);
-            showAlert('Error loading request details', 'error');
-        });
-}
-
-function approveAppointment(requestId) {
-    if (!confirm('Approve this appointment request?')) {
-        return;
-    }
-
-    let user = JSON.parse(sessionStorage.getItem('user'));
-    if (!user || !user.id) {
-        try {
-            user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        } catch (err) {
-            user = {};
-        }
-    }
-    
-    const updateData = {
-        id: requestId,
-        status: 'approved',
-        counselor_id: user?.id || 0,
-        counselor_notes: 'Appointment approved by coordinator'
-    };
-
-    fetch('../../api/appointment-request', {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showAlert('Appointment approved!', 'success');
-            closeRequestModal();
-            loadAppointmentRequests();
-        } else {
-            showAlert(result.message || 'Failed to approve appointment', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error approving appointment:', error);
-        showAlert('Error: ' + error.message, 'error');
-    });
-}
-
-function proposeChanges(requestId) {
-    currentEditingAppointmentId = requestId;
-    const tbody = document.getElementById('appointmentRequestsBody');
-    const row = tbody.querySelector(`button[onclick*="${requestId}"]`)?.closest('tr');
-    
-    if (!row) {
-        showAlert('Request not found', 'error');
-        return;
-    }
-
-    // Show edit modal or handle changes
-    showAlert('Edit functionality is available through the detail modal', 'info');
-}
-
-function rejectRequest(requestId) {
-    if (!confirm('Reject this appointment request?')) {
-        return;
-    }
-
-    let user = JSON.parse(sessionStorage.getItem('user'));
-    if (!user || !user.id) {
-        try {
-            user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        } catch (err) {
-            user = {};
-        }
-    }
-    
-    const updateData = {
-        id: requestId,
-        status: 'rejected',
-        counselor_id: user?.id || 0,
-        counselor_notes: 'Request rejected by coordinator'
-    };
-
-    fetch('../../api/appointment-request', {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            showAlert('Request rejected', 'success');
-            loadAppointmentRequests();
-        } else {
-            showAlert(result.message || 'Failed to reject', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('Error: ' + error.message, 'error');
-    });
-}
-
-function closeRequestModal() {
-    document.getElementById('requestModal').style.display = 'none';
-    currentEditingAppointmentId = null;
-    currentAppointmentRequest = null;
-}
-
-function approveAppointmentFromModal() {
-    if (!currentEditingAppointmentId) {
-        showAlert('No request selected', 'error');
-        return;
-    }
-    approveAppointment(currentEditingAppointmentId);
-}
-
-function proposeChangesFromModal() {
-    if (!currentEditingAppointmentId) {
-        showAlert('No request selected', 'error');
-        return;
-    }
-    proposeChanges(currentEditingAppointmentId);
-}
-
-function rejectRequestFromModal() {
-    if (!currentEditingAppointmentId) {
-        showAlert('No request selected', 'error');
-        return;
-    }
-    rejectRequest(currentEditingAppointmentId);
-}
-
 document.addEventListener('DOMContentLoaded', initSchedulePage);
-

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Appointments;
 
 use App\Http\Controllers\Controller;
+use App\Support\ScheduleAvailability;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use mysqli;
 use Throwable;
@@ -198,9 +199,7 @@ class AppointmentRequestController extends Controller
                 $preferred_time = trim((string)($payload['preferred_time'] ?? ''));
                 $reason = trim((string)($payload['reason'] ?? ''));
                 $notes = trim((string)($payload['notes'] ?? ''));
-                $school = trim((string)($payload['school'] ?? ''));
-                $role = trim((string)($payload['role'] ?? ''));
-                $counselor_id = (int)($payload['counselor_id'] ?? 0);
+                $counselor_id = 0;
                 // Ties this appointment back to the case it was booked from (see
                 // "Add Counseling Session" — submitAppointments() in counseling.js)
                 // so student-history.php can nest it under that case's own
@@ -208,30 +207,36 @@ class AppointmentRequestController extends Controller
                 $case_uid = trim((string)($payload['case_uid'] ?? ''));
                 $case_uid = $case_uid !== '' ? $case_uid : null;
 
-                // Students request for themselves; counselors/coordinators book a
-                // student of their own school straight in (approved). Which of the
-                // two this is used to come from a `role` field in the request, so a
-                // student could send role "counselor" and approve their own request.
-                api_require_role(array_merge(api_roles_guidance(), ['student']));
+                // Students request for themselves; counselors book a student of
+                // their own school straight in (approved). Which of the two this
+                // is comes from the logged-in account, never from the request.
+                // Coordinators only manage school events; booking and handling
+                // students' sessions is the counselor's job.
+                api_require_role(array_merge(api_roles_counselor(), ['student']));
                 $school = api_school();
-                if (api_is(api_roles_guidance())) {
-                    $role = api_role();
+                $isStaffInitiated = api_is(api_roles_counselor());
+                if ($isStaffInitiated) {
                     $counselor_id = api_user_id();
                     if (!$this->staffMayHandleStudent($conn, (string) $student_id)) {
                         $this->send_json(403, ['success' => false, 'message' => "This student isn't one you handle."]);
                     }
                 } else {
-                    $role = 'student';
                     $student_id = api_user_id();
                     $student_name = api_user_name();
+                    // A student's own request is never tied to a counseling case.
+                    $case_uid = null;
                 }
+                $forStudent = !$isStaffInitiated;
 
                 if ($student_id === 0 || $student_name === '' || $preferred_date === '' || $preferred_time === '' || $reason === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
                 }
+                if ($school === '') {
+                    $this->send_json(400, ['success' => false, 'message' => 'Your account has no school on file, so appointments cannot be booked.']);
+                }
 
                 // Validate date format
-                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferred_date)) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferred_date) || strtotime($preferred_date) === false) {
                     $this->send_json(400, ['success' => false, 'message' => 'Invalid date format. Use YYYY-MM-DD']);
                 }
 
@@ -247,65 +252,104 @@ class AppointmentRequestController extends Controller
                     $this->send_json(400, ['success' => false, 'message' => 'Weekends are not available for appointments. Please select a weekday.']);
                 }
 
-                // One session a day per student, however it's booked (Stage 6
-                // follow-up calendar, Appoint Students, or the student's own
-                // online request).
-                $existingTime = $this->student_session_on($conn, $student_id, $preferred_date);
-                if ($existingTime !== null) {
-                    $this->send_json(409, ['success' => false, 'message' => $this->one_session_message($student_name, $preferred_date, $existingTime, api_role() === 'student')]);
+                // Only the school-hour slots the pages offer can be booked.
+                $slot = ScheduleAvailability::normalizeSlot($preferred_time);
+                if ($slot === null) {
+                    $this->send_json(400, ['success' => false, 'message' => 'Please pick one of the listed times (8:00 AM to 11:30 AM, or 1:00 PM to 3:30 PM).']);
+                }
+                $preferred_time = $slot;
+                $slotStart = ScheduleAvailability::toMinutes($slot);
+                $slotEnd = $slotStart + ScheduleAvailability::SLOT_MINUTES;
+
+                if ($preferred_date === date('Y-m-d') && $slotStart <= ((int) date('G')) * 60 + (int) date('i')) {
+                    $this->send_json(400, ['success' => false, 'message' => 'That time has already passed today. Please pick a later time.']);
                 }
 
                 $request_id = 'areq_' . bin2hex(random_bytes(8));
 
-                // Appointments a counselor/coordinator schedules directly (e.g. from
-                // a case's "Appoint Students" action) don't need their own approval
-                // step — that review is only meaningful for appointments a student
+                // Appointments a counselor schedules directly (e.g. from a case's
+                // "Appoint Students" action) don't need their own approval step;
+                // that review is only meaningful for appointments a student
                 // requests. Skip straight to 'approved' for staff-initiated ones.
-                $isStaffInitiated = $this->is_counselor_or_coordinator($role);
                 $initialStatus = $isStaffInitiated ? 'approved' : 'pending';
                 $initialCounselorId = $isStaffInitiated ? $counselor_id : 0;
                 $initialCounselorNotes = $isStaffInitiated ? 'Scheduled directly by counselor' : '';
                 $initialBookingType = $isStaffInitiated ? 'counseling' : 'online';
                 // Captured once here, separate from counselor_id, which the PUT
-                // handler below overwrites on every later status change — see
+                // handler below overwrites when the request is approved — see
                 // ensure_created_by_column(). NULL for a student's own online
                 // self-booking.
                 $createdById = $isStaffInitiated ? $counselor_id : null;
 
-                $sql = "
-            INSERT INTO appointment_requests (
-                request_id, student_id, student_name, preferred_date, preferred_time, reason, notes, school_attended, status, counselor_id, counselor_notes, booking_type, case_uid, created_by_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ";
-
-                $stmt = $conn->prepare($sql);
-                if (!$stmt) {
-                    $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                // The availability checks and the insert run under one lock per
+                // school, so two bookings for the same slot sent at the same
+                // moment can't both get through.
+                if (!ScheduleAvailability::lock($conn, $school)) {
+                    $this->send_json(503, ['success' => false, 'message' => 'The schedule is busy right now. Please try again in a moment.']);
                 }
+                try {
+                    // One session a day per student, however it's booked (Stage 6
+                    // follow-up calendar, Appoint Students, or the student's own
+                    // online request).
+                    $existingTime = $this->student_session_on($conn, $student_id, $preferred_date);
+                    if ($existingTime !== null) {
+                        $this->send_json(409, ['success' => false, 'conflict' => true, 'message' => $this->one_session_message($student_name, $preferred_date, $existingTime, $forStudent)]);
+                    }
 
-                $stmt->bind_param(
-                    'sisssssssisssi',
-                    $request_id,
-                    $student_id,
-                    $student_name,
-                    $preferred_date,
-                    $preferred_time,
-                    $reason,
-                    $notes,
-                    $school,
-                    $initialStatus,
-                    $initialCounselorId,
-                    $initialCounselorNotes,
-                    $initialBookingType,
-                    $case_uid,
-                    $createdById
-                );
+                    // The slot itself must be free: no school event over it and
+                    // no other student's session in it.
+                    $when = ScheduleAvailability::formatTime($slot) . ' on ' . ScheduleAvailability::formatDate($preferred_date);
+                    $event = ScheduleAvailability::blockingEvent($conn, $school, $preferred_date, $slotStart, $slotEnd);
+                    if ($event !== null) {
+                        $title = trim((string) $event['title']) !== '' ? trim((string) $event['title']) : 'a school event';
+                        $this->send_json(409, ['success' => false, 'conflict' => true, 'message' => "{$when} is blocked by {$title}. Please choose another time."]);
+                    }
+                    $taken = ScheduleAvailability::overlappingBooking($conn, $school, $preferred_date, $slotStart, $slotEnd, $isStaffInitiated ? $case_uid : null);
+                    if ($taken !== null) {
+                        // Students never see who holds a slot, only that it's gone.
+                        $message = $forStudent
+                            ? "{$when} has already been booked. Please choose another time."
+                            : "{$when} is already booked (" . (trim((string) $taken['student_name']) ?: 'another student') . '). Please pick another time.';
+                        $this->send_json(409, ['success' => false, 'conflict' => true, 'message' => $message]);
+                    }
 
-                if (!$stmt->execute()) {
-                    $this->send_json(500, ['success' => false, 'message' => 'Failed to save request: ' . $stmt->error]);
+                    $sql = "
+                INSERT INTO appointment_requests (
+                    request_id, student_id, student_name, preferred_date, preferred_time, reason, notes, school_attended, status, counselor_id, counselor_notes, booking_type, case_uid, created_by_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ";
+
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                    }
+
+                    $stmt->bind_param(
+                        'sisssssssisssi',
+                        $request_id,
+                        $student_id,
+                        $student_name,
+                        $preferred_date,
+                        $preferred_time,
+                        $reason,
+                        $notes,
+                        $school,
+                        $initialStatus,
+                        $initialCounselorId,
+                        $initialCounselorNotes,
+                        $initialBookingType,
+                        $case_uid,
+                        $createdById
+                    );
+
+                    if (!$stmt->execute()) {
+                        $this->send_json(500, ['success' => false, 'message' => 'Failed to save request: ' . $stmt->error]);
+                    }
+
+                    $stmt->close();
+                } finally {
+                    ScheduleAvailability::unlock($conn, $school);
                 }
-
-                $stmt->close();
 
                 // Best-effort — a mail failure must never block the appointment
                 // request itself, which has already been saved successfully above.
@@ -335,23 +379,24 @@ class AppointmentRequestController extends Controller
                 }
 
                 $request_id = trim((string)($payload['id'] ?? ''));
-                $status = trim((string)($payload['status'] ?? ''));
-                $counselor_id = (int)($payload['counselor_id'] ?? 0);
+                $status = strtolower(trim((string)($payload['status'] ?? '')));
                 $counselor_notes = trim((string)($payload['counselor_notes'] ?? ''));
-                // Optional — only sent by "Propose New Time" (status=proposed_change).
-                // Approve/reject calls omit these, so the columns are left untouched.
-                $preferred_date = trim((string)($payload['preferred_date'] ?? ''));
-                $preferred_time = trim((string)($payload['preferred_time'] ?? ''));
 
                 if ($request_id === '' || $status === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
                 }
 
-                // Approve / reject / propose a new time: guidance staff, for
-                // requests of students they handle; recorded under their own id.
-                api_require_role(api_roles_guidance());
+                // A request can only be booked into a free slot (see POST), so
+                // there is nothing left to decline or move: the only change a
+                // counselor makes to a student's request is approving it.
+                // Coordinators don't handle students' sessions.
+                api_require_role(api_roles_counselor());
+                if ($status !== 'approved') {
+                    $this->send_json(400, ['success' => false, 'message' => 'Appointment requests can only be approved. Times are checked when they are booked, so requests no longer need to be declined or moved.']);
+                }
+
                 $counselor_id = api_user_id();
-                $ownerStmt = $conn->prepare('SELECT student_id, student_name, school_attended FROM appointment_requests WHERE request_id = ?');
+                $ownerStmt = $conn->prepare('SELECT student_id, student_name, school_attended, status FROM appointment_requests WHERE request_id = ?');
                 $ownerStmt->bind_param('s', $request_id);
                 $ownerStmt->execute();
                 $owner = $ownerStmt->get_result()->fetch_assoc();
@@ -360,61 +405,30 @@ class AppointmentRequestController extends Controller
                     $this->send_json(404, ['success' => false, 'message' => 'Request not found']);
                 }
 
-                // Moving a request to a new date ("Propose New Time") can't land
-                // on a day the student already has another session.
-                if ($preferred_date !== '' && !in_array(strtolower($status), ['rejected', 'cancelled'], true)) {
-                    $existingTime = $this->student_session_on($conn, (int) $owner['student_id'], $preferred_date, $request_id);
-                    if ($existingTime !== null) {
-                        $this->send_json(409, ['success' => false, 'message' => $this->one_session_message((string) $owner['student_name'], $preferred_date, $existingTime, false)]);
-                    }
+                $previousStatus = strtolower((string) ($owner['status'] ?? ''));
+                if ($previousStatus === 'approved') {
+                    $this->send_json(200, ['success' => true, 'message' => 'This appointment is already approved.']);
+                }
+                if (in_array($previousStatus, ScheduleAvailability::INACTIVE_STATUSES, true)) {
+                    $this->send_json(409, ['success' => false, 'message' => "This request was {$previousStatus} earlier and can no longer be approved."]);
                 }
 
-                $previousStatusStmt = $conn->prepare("SELECT status FROM appointment_requests WHERE request_id = ?");
-                $previousStatusStmt->bind_param('s', $request_id);
-                $previousStatusStmt->execute();
-                $previousStatusRow = $previousStatusStmt->get_result()->fetch_assoc();
-                $previousStatusStmt->close();
-                $previousStatus = $previousStatusRow['status'] ?? null;
-
-                $sql = "UPDATE appointment_requests SET status = ?, counselor_id = ?, counselor_notes = ?";
-                $types = 'sis';
-                $params = [$status, $counselor_id, $counselor_notes];
-
-                if ($preferred_date !== '') {
-                    $sql .= ", preferred_date = ?";
-                    $types .= 's';
-                    $params[] = $preferred_date;
+                if ($counselor_notes === '') {
+                    $counselor_notes = 'Appointment approved by counselor';
                 }
-                if ($preferred_time !== '') {
-                    $sql .= ", preferred_time = ?";
-                    $types .= 's';
-                    $params[] = $preferred_time;
-                }
-
-                $sql .= " WHERE request_id = ?";
-                $types .= 's';
-                $params[] = $request_id;
-
-                $stmt = $conn->prepare($sql);
+                $stmt = $conn->prepare("UPDATE appointment_requests SET status = 'approved', counselor_id = ?, counselor_notes = ? WHERE request_id = ?");
                 if (!$stmt) {
                     $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
                 }
-
-                $stmt->bind_param($types, ...$params);
-
+                $stmt->bind_param('iss', $counselor_id, $counselor_notes, $request_id);
                 if (!$stmt->execute()) {
                     $this->send_json(500, ['success' => false, 'message' => 'Update failed: ' . $stmt->error]);
                 }
-
                 $stmt->close();
 
-                // Only notify on an actual status transition, not a notes-only
-                // re-save that happens to resend the same status.
-                if ($previousStatus !== null && $previousStatus !== $status) {
-                    notify_appointment_email($conn, $request_id, $status);
-                }
+                notify_appointment_email($conn, $request_id, 'approved');
 
-                $this->send_json(200, ['success' => true, 'message' => 'Request updated successfully']);
+                $this->send_json(200, ['success' => true, 'message' => 'Appointment approved']);
             }
 
             $this->send_json(405, ['success' => false, 'message' => 'Method not allowed']);
@@ -561,17 +575,6 @@ class AppointmentRequestController extends Controller
         }
         $grade = trim((string) ($row['Grade'] ?? ''));
         return $grade === '' || api_grade_ok($conn, $grade);
-    }
-
-    private function is_counselor_or_coordinator(string $role): bool {
-        $normalized = strtolower(trim($role));
-        if ($normalized === '') {
-            return false;
-        }
-        if (in_array($normalized, ['coordinator', 'counselor', 'counselor-and-coordinator'], true)) {
-            return true;
-        }
-        return strpos($normalized, 'coordinator') !== false || strpos($normalized, 'counselor') !== false;
     }
 
     private function ensure_appointment_request_table(mysqli $conn): void {
