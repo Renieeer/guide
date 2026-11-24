@@ -134,6 +134,10 @@ Route::prefix('api')->name('api.')->middleware('legacy.errors')->group(function 
         // Feedback
         Route::any('feedback', Feedback\FeedbackController::class)->name('feedback');
         Route::any('feedback-replies', Feedback\FeedbackRepliesController::class)->name('feedback-replies');
+        // As-you-type bad-word check for student feedback (word lists only).
+        Route::any('profanity-check', Feedback\ProfanityCheckController::class)
+            ->middleware('throttle:60,1')
+            ->name('profanity-check');
 
         // School / SDO administration
         Route::any('sdo-school-staff', School\SdoSchoolStaffController::class)->name('sdo-school-staff');

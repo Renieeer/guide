@@ -37,10 +37,18 @@ let optionsLoaded = false;
 let editingRatingId = null;
 let editStarValue = 0;
 
+// Bad-word checks on the comment fields (js/profanity-guard.js); the
+// server refuses them too (api/student-ratings).
+let ratingCommentGuard = null;
+let editCommentGuard = null;
+
 document.addEventListener('DOMContentLoaded', async function() {
     initPage();
     setupStarRatingInput();
     setupEventListeners();
+    ratingCommentGuard = ProfanityGuard.attach(document.getElementById('ratingComment'), {
+        submit: document.querySelector('#ratingForm button[type="submit"]')
+    });
     await Promise.all([loadRatingSessionOptions(), loadMyRatings()]);
     optionsLoaded = true;
     renderAll();
@@ -212,6 +220,7 @@ function clearRatingForm() {
     selectedStarRating = 0;
     paintStars(0);
     document.getElementById('starRatingHint').textContent = 'Click a star to rate';
+    ratingCommentGuard?.reset();
 }
 
 async function saveRating() {
@@ -240,6 +249,10 @@ async function saveRating() {
         showAlert('Please write a comment about your experience.', 'error');
         return;
     }
+    if (ratingCommentGuard && !(await ratingCommentGuard.ready())) {
+        showAlert('Please rephrase the flagged words in your comment first.', 'error');
+        return;
+    }
 
     const selectedOption = idSelect.options[idSelect.selectedIndex];
     const sessionLabel = selectedOption.textContent;
@@ -264,6 +277,12 @@ async function saveRating() {
             })
         });
         const data = await response.json();
+        if (data.code === 'profanity') {
+            // The full server check (it may also ask Sightengine) found more.
+            ProfanityGuard.showServerResult(document.getElementById('ratingComment'), data);
+            showAlert(data.message, 'error');
+            return;
+        }
         if (!response.ok || !data.success) {
             throw new Error(data.message || 'Failed to submit rating');
         }
@@ -327,6 +346,10 @@ async function saveRatingEdit(saveBtn) {
         showAlert('Please write a comment about your experience.', 'error');
         return;
     }
+    if (editCommentGuard && !(await editCommentGuard.ready())) {
+        showAlert('Please rephrase the flagged words in your comment first.', 'error');
+        return;
+    }
 
     saveBtn.disabled = true;
     try {
@@ -336,6 +359,11 @@ async function saveRatingEdit(saveBtn) {
             body: JSON.stringify({ id: editingRatingId, rating: editStarValue, comment, anonymous })
         });
         const data = await response.json();
+        if (data.code === 'profanity') {
+            ProfanityGuard.showServerResult(box.querySelector('.review-edit-comment'), data);
+            showAlert(data.message, 'error');
+            return;
+        }
         if (!response.ok || !data.success) {
             throw new Error(data.message || 'Failed to update rating');
         }
@@ -344,7 +372,8 @@ async function saveRatingEdit(saveBtn) {
         await loadMyRatings();
         renderAll();
     } catch (error) {
-        saveBtn.disabled = false;
+        // Stays held while the comment still has flagged words.
+        saveBtn.disabled = saveBtn.dataset.profanityHeld === '1';
         showAlert('Could not update your rating: ' + error.message, 'error');
     }
 }
@@ -450,6 +479,11 @@ function renderMyRatingsHistory() {
                 </div>
             </div>`;
     }).join('');
+
+    // The edit form is drawn fresh each time, so its check is attached anew.
+    editCommentGuard = ProfanityGuard.attach(container.querySelector('.review-edit-comment'), {
+        submit: container.querySelector('[data-save-edit]')
+    });
 }
 
 function starsHtml(rating) {

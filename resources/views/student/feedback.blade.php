@@ -231,6 +231,7 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/profanity-guard.js') }}?v={{ filemtime(public_path('js/profanity-guard.js')) }}"></script>
     <script src="{{ asset('pages/student/feedback.js') }}?v={{ filemtime(public_path('pages/student/feedback.js')) }}"></script>
 </body>
 </html>

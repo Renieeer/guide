@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Feedback;
 
 use App\Http\Controllers\Controller;
+use App\Support\ProfanityFilter;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use mysqli;
 use Throwable;
@@ -104,6 +105,8 @@ class FeedbackRepliesController extends Controller
                 // student_account_id.
                 if ($senderRole === 'student') {
                     $this->load_authorized_feedback($conn, $feedbackId, $senderAccountId, '');
+                    // No bad words in what a student writes (see ProfanityFilter).
+                    ProfanityFilter::abortIfProfane($message, 'message');
                 } else {
                     $this->load_authorized_feedback($conn, $feedbackId, '', $school);
                 }

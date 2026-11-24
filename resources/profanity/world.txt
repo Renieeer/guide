@@ -1,0 +1,258 @@
+# The strongest, unambiguous swear words in other languages. Full word
+# lists for these languages block everyday English and Filipino words
+# (Turkish "am", Dutch "aso", Portuguese "mama" and "pinto", Finnish "muna",
+# Polish "suka"), so only clear-cut words are kept here. The optional
+# Sightengine check (see README.md) covers these languages in more depth.
+#
+# Words written in non-Latin scripts are matched inside longer words too,
+# since Chinese, Japanese, Korean and Thai don't put spaces between words.
+# Format: see README.md.
+
+# Spanish
+mierda
+pendejo
+pendeja
+cabron
+cabrona
+coño
+gilipollas
+hijo de puta
+hijoputa
+hijueputa
+joder
+jodete
+chinga
+chingada
+chingado
+chingar
+verga
+culero
+maricon
+carajo
+mamon
+cojones
+malparido
+
+# Portuguese
+caralho
+porra
+merda
+foda
+foda-se
+fodase
+filho da puta
+buceta
+boceta
+viado
+arrombado
+babaca|mild
+otario|mild
+
+# French
+merde
+putain
+pute
+salope
+connard
+connasse
+enculé
+enfoiré
+nique ta mère
+niquer
+ta gueule
+fils de pute
+salaud
+couilles
+bâtard
+
+# Italian
+cazzo
+stronzo
+stronza
+vaffanculo
+fanculo
+puttana
+troia
+minchia
+coglione
+coglioni
+porca puttana
+porco dio
+frocio
+figlio di puttana
+
+# German
+scheiße
+scheiss
+arschloch
+fotze
+hurensohn
+wichser
+ficken
+fick dich
+schlampe
+miststück
+schwuchtel
+verdammt|mild
+
+# Dutch
+klootzak
+godverdomme
+kankerlijer
+teringlijer
+kutwijf
+mongool
+
+# Polish
+kurwa
+chuj
+pierdolić
+jebać
+skurwysyn
+pizda
+spierdalaj
+
+# Czech / Slovak
+kurva
+hovno
+prdel
+zmrd
+čurák
+
+# Hungarian
+fasz
+geci
+bazmeg
+picsa
+kibaszott
+baszd meg
+
+# Swedish / Norwegian / Danish / Finnish
+fitta
+jävla
+knulla
+faen
+fitte
+fisse
+vittu
+perkele
+kusipää
+haista vittu
+paska
+
+# Turkish
+orospu
+siktir
+amcık
+yarrak
+orospu çocuğu
+sikerim
+götveren
+
+# Russian, written in Latin letters ("suka" alone is Tagalog for vinegar)
+blyat
+blyad
+pizdec
+nahui
+nahuy
+mudak
+suka blyat
+
+# Russian / Ukrainian
+блядь
+блять
+сука
+хуй
+пизда
+пиздец
+ебать
+ебаный
+нахуй
+мудак
+хуйня
+
+# Indonesian / Malay
+bangsat
+kontol
+memek
+ngentot
+jancok
+jancuk
+pukimak
+goblok|mild
+tolol|mild
+
+# Hindi / Urdu (romanized and Devanagari)
+madarchod
+maderchod
+behenchod
+bhenchod
+chutiya
+chutiye
+bhosdike
+bhosadike
+gandu
+harami|mild
+मादरचोद
+बहनचोद
+भेनचोद
+चूतिया
+भोसडीके
+रंडी
+गांडू
+
+# Arabic
+كس امك
+شرموطة
+منيوك
+قحبة
+عرص
+يلعن
+
+# Persian
+کیر
+جنده
+مادر جنده
+کس کش
+
+# Chinese
+他妈的
+操你妈
+草泥马
+傻逼
+傻屄
+王八蛋
+混蛋
+婊子
+狗屎
+你妈的
+贱人
+
+# Japanese
+くそったれ
+ちんこ
+まんこ
+死ね
+ファック
+くたばれ
+
+# Korean
+씨발
+시발
+씨팔
+개새끼
+병신
+좆
+지랄
+미친놈
+
+# Thai
+เหี้ย
+ควย
+เย็ด
+ไอ้สัตว์
+
+# Vietnamese
+địt mẹ
+đụ má
+con cặc

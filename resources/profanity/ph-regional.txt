@@ -1,0 +1,24 @@
+# Other Philippine languages. Format: see README.md.
+# Not listed on purpose: "atay" (liver), "animal", "bogo" (a city in Cebu)
+# and "bayot" (an identity word) on their own.
+
+# Cebuano / Bisaya
+yawa
+yawa ka
+piste
+pisti
+pisteng yawa
+pistiyawa
+giatay
+atay ka
+animal ka
+bilat
+oten
+buang|mild
+boang|mild
+litse|mild
+
+# Ilocano
+ukinnam
+ukininam
+ukinam

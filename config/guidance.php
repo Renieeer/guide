@@ -22,4 +22,29 @@ return [
         'reminder_secret' => env('REMINDER_SECRET', ''),
     ],
 
+    // Profanity filter for what students write: feedback threads, replies
+    // and rating comments (App\Support\ProfanityFilter). The word lists in
+    // resources/profanity always run; see the README there to add words.
+    'profanity' => [
+        'enabled' => (bool) env('PROFANITY_FILTER_ENABLED', true),
+
+        // Also block milder words (stupid, damn, bobo, tanga, bwisit...).
+        'block_mild' => (bool) env('PROFANITY_BLOCK_MILD', true),
+
+        // Optional second check with Sightengine (https://sightengine.com):
+        // rule-based profanity detection in 18 languages, including
+        // Tagalog. Free plan: 2,000 checks a month, at most 500 a day. Runs
+        // only when a student submits (never while typing), and identical
+        // texts are checked once a day. Leave the keys empty to use the word
+        // lists alone; if Sightengine can't be reached the lists still apply.
+        'sightengine' => [
+            'api_user' => env('SIGHTENGINE_API_USER', ''),
+            'api_secret' => env('SIGHTENGINE_API_SECRET', ''),
+            // Languages to check, comma-separated (Sightengine detects which
+            // one a text is in). The 18 it supports for profanity.
+            'languages' => env('SIGHTENGINE_LANGUAGES', 'en,tl,es,fr,de,it,pt,nl,pl,ro,ru,tr,zh,ko,da,fi,no,sv'),
+            'timeout' => (int) env('SIGHTENGINE_TIMEOUT', 4),
+        ],
+    ],
+
 ];

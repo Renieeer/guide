@@ -1,0 +1,136 @@
+# Never blocked, by the word lists or by the Sightengine check. A guidance
+# office must hear it when a student describes abuse, their body, health,
+# puberty or identity, and everyday phrases must not be mistaken for swearing.
+# One word or phrase per line; matching ignores case, accents and spacing.
+
+# Abuse, harassment and safety
+rape
+raped
+raping
+rapist
+molest
+molested
+molestation
+harass
+harassed
+harassment
+abuse
+abused
+grope
+groped
+groping
+assault
+assaulted
+incest
+pedophile
+kill myself
+suicide
+suicidal
+self harm
+cutting
+hinipuan
+ginahasa
+hinalay
+binastos
+manyak
+malibog
+libog
+
+# Body, health and puberty
+sex
+sexual
+sexually
+sexuality
+sexy
+naked
+nude
+nudes
+penis
+vagina
+vulva
+breast
+breasts
+nipple
+nipples
+anus
+anal
+rectum
+genitals
+semen
+sperm
+pregnant
+pregnancy
+condom
+period
+menstruation
+masturbate
+masturbation
+puberty
+porn
+pornography
+upskirt
+topless
+
+# Identity
+gay
+lesbian
+bisexual
+transgender
+homosexual
+queer
+bakla
+tomboy
+bayot
+
+# Places, food and names
+negros
+negros occidental
+negros oriental
+puto
+boba
+lady gaga
+cummings
+bonner
+
+# Everyday words the stretched-letter and ending rules would catch, found
+# by running the filter over the 50,000 most common English and Tagalog words
+sheet
+sheets
+conn
+booboo
+boo-boo
+damning
+cocking
+cocked
+cocker
+cockers
+cocky
+gangbanger
+gangbangers
+puking
+
+# Everyday phrases that contain a listed word
+cum laude
+magna cum laude
+summa cum laude
+leche flan
+leche plan
+scunthorpe
+shiitake
+cocktail
+cockpit
+cockroach
+cockfight
+assess
+assessment
+assist
+assistant
+class
+classic
+grass
+pass
+passing
+password
+bass
+mass
+glass

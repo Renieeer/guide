@@ -13391,3 +13391,47 @@ h4.text-primary {
     object-fit: cover;
     border-radius: 11px;
 }
+
+/* ── BAD-WORD WARNING (js/profanity-guard.js) ──
+   Shown under a student's text field while it has words that can't be
+   sent; the field is outlined and its submit button held until they go. */
+.profanity-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 9px 12px;
+    border: 1px solid #f3c7c2;
+    border-radius: 8px;
+    background: #fbe9e7;
+    color: #8f1d15;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.profanity-notice[hidden] {
+    display: none;
+}
+
+.profanity-notice i {
+    margin-top: 1px;
+    font-size: 15px;
+}
+
+.profanity-notice strong {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: 0.02em;
+}
+
+textarea.has-profanity,
+input.has-profanity {
+    border-color: #d93025 !important;
+    box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.15) !important;
+}
+
+/* A submit button held by the bad-word check. */
+.btn[data-profanity-held] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}

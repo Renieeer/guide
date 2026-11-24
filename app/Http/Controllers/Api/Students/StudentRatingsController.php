@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Students;
 
 use App\Http\Controllers\Controller;
+use App\Support\ProfanityFilter;
 use mysqli;
 
 // Star ratings a student leaves on a specific counseling case or referral
@@ -148,6 +149,9 @@ class StudentRatingsController extends Controller
                 ]);
             }
 
+            // No bad words in what a student writes (see ProfanityFilter).
+            ProfanityFilter::abortIfProfane($comment, 'comment');
+
             $ratingId = 'rating_' . bin2hex(random_bytes(8));
 
             $stmt = $conn->prepare('
@@ -199,6 +203,7 @@ class StudentRatingsController extends Controller
                 if ($rating < 1 || $rating > 5 || $comment === '') {
                     $this->send_json(400, ['success' => false, 'message' => 'A star rating and a comment are required.']);
                 }
+                ProfanityFilter::abortIfProfane($comment, 'comment');
 
                 $studentAccountId = api_user_id();
                 $stmt = $conn->prepare('UPDATE student_ratings SET rating = ?, comment = ?, anonymous = ?, is_read = 0, updated_at = NOW() WHERE rating_id = ? AND student_account_id = ?');

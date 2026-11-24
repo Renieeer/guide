@@ -1,0 +1,91 @@
+# Filipino / Tagalog, including common Taglish and texting spellings.
+# Spelling tricks (g@go, gaaago, g.a.g.o, g*go) and endings (gagong,
+# putanginamo, kabobohan) are handled by the filter, so only base forms
+# are listed. Format: see README.md.
+#
+# Not listed on purpose: words a student may need to describe what happened
+# to them or who they are (bakla, tomboy, libog/malibog), and everyday words
+# that some lists flag (tanging, atay, baka, aso, suka, pinto, pito).
+
+# Curses
+putang ina
+putangina
+puta
+puta ka
+pota
+potangina
+potaena
+taena
+putragis
+tangina
+tang ina
+tangna
+tngina
+ptngina
+kingina
+kinginamo
+inamo
+anak ng puta
+anak ka ng puta
+bwakanangina
+punyeta
+punyemas
+pakshet
+pakshit
+pakingshet
+pksht
+pakyu
+pakyo
+gago
+gaga
+gagu
+ulol
+olol
+ulul
+tarantado
+tarantada
+hinayupak
+hayop ka
+hayup ka
+kupal
+nognog
+pokpok
+
+# Milder (blocked unless PROFANITY_BLOCK_MILD=false)
+pucha|mild
+putcha|mild
+leche|mild
+letse|mild
+lintik|mild
+lintek|mild
+bwisit|mild
+buwisit|mild
+shet|mild
+syet|mild
+peste|mild
+bobo|mild
+tanga|mild
+inutil|mild
+engot|mild
+tangek|mild
+ungas|mild
+abnoy|mild
+gunggong|mild
+malandi|mild
+
+# Crude sexual words
+kantot
+kantutan
+kinantot
+iyot
+jakol
+salsal
+chupa
+tsupa
+burat
+titi
+puki
+pekpek
+etits
+bayag
+tamod

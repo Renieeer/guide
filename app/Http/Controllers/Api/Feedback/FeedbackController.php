@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Feedback;
 
 use App\Http\Controllers\Controller;
+use App\Support\ProfanityFilter;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use mysqli;
 use Throwable;
@@ -274,6 +275,9 @@ class FeedbackController extends Controller
                 } else {
                     $this->send_json(400, ['success' => false, 'message' => 'Invalid subject_type']);
                 }
+
+                // No bad words in what a student writes (see ProfanityFilter).
+                ProfanityFilter::abortIfProfane($message, 'message');
 
                 $subjectLabel = $found['label'];
                 $feedbackId = 'fb_' . bin2hex(random_bytes(8));
