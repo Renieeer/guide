@@ -160,6 +160,59 @@ document.getElementById('password')?.addEventListener('input', function(e) {
 
 loadSchoolOptions();
 
+// Student / Teacher picker. Students choose their school; teachers enter
+// the coordinator's access code instead (the code carries the school).
+// The inactive role's fields are disabled as well as hidden so the
+// browser's required-field check skips them.
+function selectedRole() {
+    const checked = document.querySelector('input[name="role"]:checked');
+    return checked && checked.value === 'teacher' ? 'teacher' : 'student';
+}
+
+function applyRole(role) {
+    const form = document.getElementById('registerForm');
+    if (!form) return;
+
+    form.dataset.role = role;
+    form.querySelectorAll('[data-role-only]').forEach((el) => {
+        const active = el.dataset.roleOnly === role;
+        el.hidden = !active;
+        el.querySelectorAll('input, select').forEach((field) => {
+            field.disabled = !active;
+        });
+    });
+
+    const subtitle = document.getElementById('registerSubtitle');
+    if (subtitle && subtitle.dataset[role]) {
+        subtitle.textContent = subtitle.dataset[role];
+    }
+
+    clearErrorMessages();
+
+    // Keep the choice in the URL so a refresh (or a shared link) opens
+    // on the same form.
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', role);
+        window.history.replaceState(null, '', url);
+    } catch (e) {
+        // Older browsers: the picker still works, the URL just won't update.
+    }
+}
+
+document.querySelectorAll('input[name="role"]').forEach((radio) => {
+    radio.addEventListener('change', () => applyRole(selectedRole()));
+});
+
+// The browser can restore a previously checked radio (Back button, form
+// restore) after the server rendered the other role's fields — re-sync.
+window.addEventListener('pageshow', () => {
+    const form = document.getElementById('registerForm');
+    if (form && form.dataset.role !== selectedRole()) {
+        applyRole(selectedRole());
+    }
+});
+
 // Handle registration form submission
 document.getElementById('registerForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -170,16 +223,23 @@ document.getElementById('registerForm')?.addEventListener('submit', async functi
     clearErrorMessages();
 
     // Get form data
+    const role = selectedRole();
+    const isTeacher = role === 'teacher';
+    const accessCode = document.getElementById('accessCode').value.trim();
     const firstName = document.getElementById('firstName').value.trim();
     const lastName = document.getElementById('lastName').value.trim();
     const email = document.getElementById('email').value.trim();
     const school = document.getElementById('school').value.trim();
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-    const role = document.getElementById('role').value;
 
     // Validate all fields
     let hasError = false;
+
+    if (isTeacher && !accessCode) {
+        showFieldError('accessCode', 'Access code from your coordinator is required');
+        hasError = true;
+    }
 
     if (!firstName) {
         showFieldError('firstName', 'First name is required');
@@ -199,7 +259,7 @@ document.getElementById('registerForm')?.addEventListener('submit', async functi
         hasError = true;
     }
 
-    if (!school) {
+    if (!isTeacher && !school) {
         showFieldError('school', 'School attended is required');
         hasError = true;
     }
@@ -227,11 +287,6 @@ document.getElementById('registerForm')?.addEventListener('submit', async functi
         hasError = true;
     }
 
-    if (!role) {
-        showFieldError('role', 'Please select a role');
-        hasError = true;
-    }
-
     if (hasError) {
         showError('Please fix the errors above and try again');
         return;
@@ -241,23 +296,24 @@ document.getElementById('registerForm')?.addEventListener('submit', async functi
     const submitBtn = this.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating Account...';
+    submitBtn.textContent = isTeacher ? 'Verifying code...' : 'Creating Account...';
 
     try {
-        // Send registration data to backend
-        const response = await fetch(`${API_BASE}/api/register`, {
+        // Students go to api/register. Teachers go to
+        // api/teacher-signup-request, which checks the coordinator's
+        // access code (bound to this email) before sending the email OTP;
+        // the code is used up once the OTP is verified.
+        const endpoint = isTeacher ? 'teacher-signup-request' : 'register';
+        const payload = isTeacher
+            ? { code: accessCode, firstName, lastName, email, password }
+            : { firstName, lastName, email, school, password, role };
+
+        const response = await fetch(`${API_BASE}/api/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                firstName: firstName,
-                lastName: lastName,
-                email: email,
-                school: school,
-                password: password,
-                role: role
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -285,6 +341,8 @@ document.getElementById('registerForm')?.addEventListener('submit', async functi
             // Handle specific error cases
             if (errorMsg.includes('already registered')) {
                 showFieldError('email', 'This email is already registered. Please login instead.');
+            } else if (errorMsg.toLowerCase().includes('access code')) {
+                showFieldError('accessCode', errorMsg);
             } else if (errorMsg.includes('security requirements')) {
                 showFieldError('password', 'Password does not meet security requirements');
             } else {

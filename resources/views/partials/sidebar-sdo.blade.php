@@ -23,12 +23,10 @@
                 <i class="bi bi-chevron-down sidebar-group-chevron"></i>
             </button>
             <ul class="sidebar-submenu">
-                <li><a href="{{ url('sdo/add-section') }}">All Section</a></li>
-                <li><a href="{{ url('sdo/add-case-category') }}">All Case Category</a></li>
+                <li><a href="{{ url('sdo/add-section') }}">All Categories</a></li>
+                <li><a href="{{ url('sdo/add-case-category') }}">All Violations</a></li>
             </ul>
         </li>
-        <li><a href="{{ url('sdo/district-analytics') }}"><i class="bi bi-bar-chart"></i> District Analytics</a></li>
-        <li><a href="{{ url('sdo/school-reports') }}"><i class="bi bi-file-earmark-text"></i> School Reports</a></li>
         <li><a href="#" id="logoutBtn"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
     </ul>
 </div>

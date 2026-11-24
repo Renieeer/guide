@@ -152,6 +152,16 @@ class AppointmentRequestController extends Controller
                     }));
                 }
 
+                // Staff reports group appointments by the reason on the referral
+                // behind them (referral_reason), not by the appointment's own
+                // reason text, which is auto-filled with an ID ("Follow-up for
+                // case CS-...", "Intake interview for referral REF-...") and so
+                // gave every appointment its own bucket. Not sent to students:
+                // the referral reason is what a teacher wrote about them.
+                if (api_role() !== 'student' && !empty($rows)) {
+                    $this->attach_referral_reasons($conn, $rows, $hasCaseScenarios);
+                }
+
                 // A student's schedule page only needs other students' requests to
                 // grey out taken time slots: date, time and status. Their names,
                 // reasons and notes used to be sent too.
@@ -235,6 +245,14 @@ class AppointmentRequestController extends Controller
                 $dayOfWeek = (int)date('N', strtotime($preferred_date)); // 6 = Saturday, 7 = Sunday
                 if ($dayOfWeek >= 6) {
                     $this->send_json(400, ['success' => false, 'message' => 'Weekends are not available for appointments. Please select a weekday.']);
+                }
+
+                // One session a day per student, however it's booked (Stage 6
+                // follow-up calendar, Appoint Students, or the student's own
+                // online request).
+                $existingTime = $this->student_session_on($conn, $student_id, $preferred_date);
+                if ($existingTime !== null) {
+                    $this->send_json(409, ['success' => false, 'message' => $this->one_session_message($student_name, $preferred_date, $existingTime, api_role() === 'student')]);
                 }
 
                 $request_id = 'areq_' . bin2hex(random_bytes(8));
@@ -333,13 +351,22 @@ class AppointmentRequestController extends Controller
                 // requests of students they handle; recorded under their own id.
                 api_require_role(api_roles_guidance());
                 $counselor_id = api_user_id();
-                $ownerStmt = $conn->prepare('SELECT student_id, school_attended FROM appointment_requests WHERE request_id = ?');
+                $ownerStmt = $conn->prepare('SELECT student_id, student_name, school_attended FROM appointment_requests WHERE request_id = ?');
                 $ownerStmt->bind_param('s', $request_id);
                 $ownerStmt->execute();
                 $owner = $ownerStmt->get_result()->fetch_assoc();
                 $ownerStmt->close();
                 if (!$owner || !api_same_school($owner['school_attended'] ?? '') || !$this->staffMayHandleStudent($conn, (string) $owner['student_id'])) {
                     $this->send_json(404, ['success' => false, 'message' => 'Request not found']);
+                }
+
+                // Moving a request to a new date ("Propose New Time") can't land
+                // on a day the student already has another session.
+                if ($preferred_date !== '' && !in_array(strtolower($status), ['rejected', 'cancelled'], true)) {
+                    $existingTime = $this->student_session_on($conn, (int) $owner['student_id'], $preferred_date, $request_id);
+                    if ($existingTime !== null) {
+                        $this->send_json(409, ['success' => false, 'message' => $this->one_session_message((string) $owner['student_name'], $preferred_date, $existingTime, false)]);
+                    }
                 }
 
                 $previousStatusStmt = $conn->prepare("SELECT status FROM appointment_requests WHERE request_id = ?");
@@ -407,6 +434,116 @@ class AppointmentRequestController extends Controller
         $escaped = $conn->real_escape_string($tableName);
         $result = $conn->query("SHOW TABLES LIKE '{$escaped}'");
         return $result && $result->num_rows > 0;
+    }
+
+    // A student can only have one session a day. Returns the time of the
+    // student's other appointment on $date that's still on (anything but
+    // rejected/cancelled), or null when the day is free for them.
+    private function student_session_on(mysqli $conn, int $studentId, string $date, string $excludeRequestId = ''): ?string {
+        $stmt = $conn->prepare("SELECT preferred_time FROM appointment_requests WHERE student_id = ? AND preferred_date = ? AND request_id <> ? AND LOWER(status) NOT IN ('rejected', 'cancelled') ORDER BY preferred_time ASC LIMIT 1");
+        if (!$stmt) {
+            return null;
+        }
+        $stmt->bind_param('iss', $studentId, $date, $excludeRequestId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        return $row ? (string) $row['preferred_time'] : null;
+    }
+
+    private function one_session_message(string $studentName, string $date, string $time, bool $forStudent): string {
+        $when = date('F j, Y', strtotime($date));
+        $at = preg_match('/^\d{1,2}:\d{2}/', $time) ? ' at ' . date('g:i A', strtotime($time)) : '';
+        if ($forStudent) {
+            return "You already have an appointment on {$when}{$at}. Only one session a day is allowed, so please pick another day.";
+        }
+        $name = trim($studentName) !== '' ? trim($studentName) : 'This student';
+        return "{$name} already has a session on {$when}{$at}. A student can only have one session a day.";
+    }
+
+    // Adds referral_code and referral_reason (referral.Reason, the teacher
+    // form's "; "-separated checklist) to each row. The link is the
+    // appointment's case_uid -> counselor_case_scenarios.referral_code, or a
+    // referral/case code named in the reason text, for rows that predate the
+    // case_uid column. Also fills a missing case_section when the case was
+    // only found through the reason text. Both fields are NULL when no
+    // referral is behind the appointment (walk-ins, student bookings).
+    private function attach_referral_reasons(mysqli $conn, array &$rows, bool $hasCaseScenarios): void {
+        $refCodeByRow = [];
+        $caseUidByRow = [];
+        foreach ($rows as $i => $r) {
+            $rows[$i]['referral_code'] = null;
+            $rows[$i]['referral_reason'] = null;
+            $reasonText = (string)($r['reason'] ?? '');
+            if (preg_match('/\bREF-[A-Z0-9]+(?:-[A-Z0-9]+)*/i', $reasonText, $m)) {
+                $refCodeByRow[$i] = strtoupper($m[0]);
+            }
+            $caseUid = trim((string)($r['case_uid'] ?? ''));
+            if ($caseUid === '' && preg_match('/\bCS-\d+/i', $reasonText, $m)) {
+                $caseUid = $m[0];
+            }
+            if ($caseUid !== '') {
+                $caseUidByRow[$i] = strtoupper($caseUid);
+            }
+        }
+
+        if ($hasCaseScenarios && !empty($caseUidByRow)) {
+            $colResult = $conn->query("SHOW COLUMNS FROM counselor_case_scenarios LIKE 'referral_code'");
+            $refCol = ($colResult && $colResult->num_rows > 0) ? 'referral_code' : 'NULL AS referral_code';
+            $uids = array_values(array_unique($caseUidByRow));
+            $ph = implode(',', array_fill(0, count($uids), '?'));
+            $stmt = $conn->prepare("SELECT case_uid, section_name, {$refCol} FROM counselor_case_scenarios WHERE case_uid IN ({$ph})");
+            $caseByUid = [];
+            if ($stmt) {
+                $stmt->bind_param(str_repeat('s', count($uids)), ...$uids);
+                if ($stmt->execute()) {
+                    $res = $stmt->get_result();
+                    while ($c = $res->fetch_assoc()) {
+                        $caseByUid[strtoupper((string)$c['case_uid'])] = $c;
+                    }
+                }
+                $stmt->close();
+            }
+            foreach ($caseUidByRow as $i => $uid) {
+                $case = $caseByUid[$uid] ?? null;
+                if (!$case) {
+                    continue;
+                }
+                if (empty($rows[$i]['case_section']) && !empty($case['section_name'])) {
+                    $rows[$i]['case_section'] = $case['section_name'];
+                }
+                $caseRef = trim((string)($case['referral_code'] ?? ''));
+                if (!isset($refCodeByRow[$i]) && $caseRef !== '') {
+                    $refCodeByRow[$i] = strtoupper($caseRef);
+                }
+            }
+        }
+
+        if (empty($refCodeByRow) || !$this->table_exists($conn, 'referral')) {
+            return;
+        }
+        $codes = array_values(array_unique($refCodeByRow));
+        $ph = implode(',', array_fill(0, count($codes), '?'));
+        $stmt = $conn->prepare("SELECT referral_code, Reason FROM referral WHERE referral_code IN ({$ph})");
+        if (!$stmt) {
+            return;
+        }
+        $reasonByCode = [];
+        $stmt->bind_param(str_repeat('s', count($codes)), ...$codes);
+        if ($stmt->execute()) {
+            $res = $stmt->get_result();
+            while ($ref = $res->fetch_assoc()) {
+                $reasonByCode[strtoupper((string)$ref['referral_code'])] = trim((string)($ref['Reason'] ?? ''));
+            }
+        }
+        $stmt->close();
+        foreach ($refCodeByRow as $i => $code) {
+            if (!array_key_exists($code, $reasonByCode)) {
+                continue;
+            }
+            $rows[$i]['referral_code'] = $code;
+            $rows[$i]['referral_reason'] = $reasonByCode[$code] !== '' ? $reasonByCode[$code] : null;
+        }
     }
 
     // Same rule as the request list: the student is at the caller's school,

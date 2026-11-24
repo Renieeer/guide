@@ -17,6 +17,9 @@ class GetStudentsController extends Controller
         try {
             $school     = isset($_GET['school']) ? trim($_GET['school']) : '';
             $search     = isset($_GET['search']) ? trim($_GET['search']) : '';
+            // LRN lookup (teacher referral form): digits only, matched from
+            // the start of the 12-digit LRN.
+            $lrn        = isset($_GET['lrn']) ? preg_replace('/\D/', '', (string)$_GET['lrn']) : '';
             $limit      = isset($_GET['limit'])  ? (int)$_GET['limit']  : 0;
             $gradeScope = grade_scope_to_list($_GET['grade_scope'] ?? '');
 
@@ -31,7 +34,7 @@ class GetStudentsController extends Controller
                 json_out(['success' => true, 'data' => [], 'count' => 0]);
             }
 
-            if ($school === '' && $search === '') {
+            if ($school === '' && $search === '' && $lrn === '') {
                 http_response_code(400);
                 json_out(['success' => false, 'message' => 'school is required when no search query is provided']);
             }
@@ -56,6 +59,7 @@ class GetStudentsController extends Controller
         SELECT
             s.StudentId AS id,
             s.StudentId,
+            s.LRN        AS lrn,
             s.FirstName  AS first_name,
             s.LastName   AS last_name,
             s.MiddleName AS middle_name,
@@ -144,6 +148,12 @@ class GetStudentsController extends Controller
                 $types .= 'sssssss';
                 $like   = "%{$search}%";
                 for ($i = 0; $i < 7; $i++) $params[] = $like;
+            }
+
+            if ($lrn !== '') {
+                $whereClauses[] = 's.LRN LIKE ?';
+                $types         .= 's';
+                $params[]       = $lrn . '%';
             }
 
             if (api_role() === 'student') {

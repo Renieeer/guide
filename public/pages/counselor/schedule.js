@@ -7,6 +7,7 @@ let appointmentCalendarEvents = [];
 let selectedScheduleDate = '';
 let scheduleEventsCache = [];
 let editingScheduleEventId = null; // set when createScheduleModal is opened to edit an existing event
+let scheduleDayAgendaDate = ''; // day shown in the Create Schedule modal's agenda panel ('' when closed)
 const SCHEDULE_API_URL = '../../api/schedule-events';
 
 // Utility Functions
@@ -157,6 +158,12 @@ function setupCreateScheduleModal() {
     });
     document.getElementById('modalEventAllDay')?.addEventListener('change', updateModalTimeFieldsVisibility);
     document.getElementById('createScheduleModalForm')?.addEventListener('submit', submitCreateScheduleModal);
+
+    // Day agenda entries open the same details as their calendar chips.
+    document.getElementById('scheduleDayList')?.addEventListener('click', (event) => {
+        const item = event.target.closest('.schedule-day-item');
+        if (item) openViewEventModal(item.dataset.entryId || '');
+    });
 }
 
 function setupRequestModal() {
@@ -211,9 +218,9 @@ function formatDateForInput(date) {
 // "Appoint Students" action). Each maps to a CSS class + icon — see the
 // SCHEDULE CALENDAR section of css/style.css for the chip styling.
 const SCHEDULE_CATEGORY_META = {
-    event: { className: 'cat-event', icon: 'bi-calendar2-week', label: 'Event' },
-    online: { className: 'cat-online', icon: 'bi-laptop', label: 'Online Appointment' },
-    counseling: { className: 'cat-counseling', icon: 'bi-person-check-fill', label: 'Counseling Appointment' }
+    event: { className: 'cat-event', icon: 'bi-calendar2-week', label: 'Event', short: 'Event' },
+    online: { className: 'cat-online', icon: 'bi-laptop', label: 'Online Appointment', short: 'Online' },
+    counseling: { className: 'cat-counseling', icon: 'bi-person-check-fill', label: 'Counseling Appointment', short: 'Counseling' }
 };
 
 function getEventCategory(event, isAppointment) {
@@ -233,6 +240,18 @@ function getScheduleEvents() {
     return scheduleEventsCache;
 }
 
+function extractDatePart(val) {
+    if (!val) return '';
+    return String(val).split('T')[0].split(' ')[0];
+}
+
+function isDateInEvent(event, d) {
+    const start = extractDatePart(event.date || '');
+    const end = extractDatePart(event.endDate || '') || start;
+    if (!start) return false;
+    return d >= start && d <= end;
+}
+
 function renderAppointmentCalendar() {
     const calendarEl = document.getElementById('scheduleCalendar');
     const monthEl = document.getElementById('scheduleCalendarMonth');
@@ -246,7 +265,9 @@ function renderAppointmentCalendar() {
     const startDay = firstDay.getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
-    const totalCells = 42;
+    // Only as many weeks as this month spans (4-6), so a row made up entirely
+    // of next month's days never appears.
+    const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
 
     monthEl.textContent = formatMonthYear(firstDay);
 
@@ -255,18 +276,6 @@ function renderAppointmentCalendar() {
     dayNames.forEach(day => {
         html += `<div class="schedule-calendar-weekday">${day}</div>`;
     });
-
-    function extractDatePart(val) {
-        if (!val) return '';
-        return String(val).split('T')[0].split(' ')[0];
-    }
-
-    function isDateInEvent(event, d) {
-        const start = extractDatePart(event.date || '');
-        const end = extractDatePart(event.endDate || '') || start;
-        if (!start) return false;
-        return d >= start && d <= end;
-    }
 
     for (let index = 0; index < totalCells; index++) {
         let cellDay = index - startDay + 1;
@@ -290,6 +299,22 @@ function renderAppointmentCalendar() {
                 cellYear += 1;
             }
             isOutside = true;
+        }
+
+        // Days from the neighbouring months only pad out the first/last week.
+        // They carry no appointments or events (those show when that month is
+        // opened) and can't be clicked to create a schedule. The first padding
+        // day of each run is labelled with its month ("Dec 1") so the edge of
+        // the month reads at a glance.
+        if (isOutside) {
+            const showMonth = index === 0 || cellDay === 1;
+            const label = showMonth
+                ? `${new Date(cellYear, cellMonth, cellDay).toLocaleDateString('en-US', { month: 'short' })} ${cellDay}`
+                : cellDay;
+            html += `<div class="schedule-calendar-day is-outside is-filler" aria-hidden="true">
+                <div class="schedule-day-number${showMonth ? ' has-month' : ''}">${label}</div>
+            </div>`;
+            continue;
         }
 
         const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(cellDay).padStart(2, '0')}`;
@@ -324,19 +349,177 @@ function renderAppointmentCalendar() {
         });
         calendarEl.dataset.listenerAttached = '1';
     }
+
+    // Keep an open day agenda in step with fresh data (approve/reject, the
+    // 30-second refresh, a newly saved event).
+    if (scheduleDayAgendaDate) renderScheduleDayAgenda(scheduleDayAgendaDate);
+}
+
+// ===== DAY AGENDA (left panel of the Create Schedule modal) =====
+// Clicking a calendar day lists that day's appointments and events beside
+// the form, so the counselor sees which times are already taken before
+// blocking off a new window. Each entry opens its details.
+
+const APPOINTMENT_STATUS_META = {
+    approved: { className: 'is-approved', label: 'Approved' },
+    pending: { className: 'is-pending', label: 'Pending' },
+    proposed_change: { className: 'is-proposed', label: 'Needs change' }
+};
+
+function isAppointmentEntry(entry) {
+    return entry.kind === 'appointment' || !!entry.student_id || !!entry.student_name;
+}
+
+function isAllDayEntry(entry) {
+    return !isAppointmentEntry(entry) && (entry.allDay || entry.time === 'All Day' || !entry.time);
+}
+
+// Appointments and events on dateStr, all-day events first, then by time.
+function getDayEntries(dateStr) {
+    const sortKey = entry => (isAllDayEntry(entry) ? '' : String(entry.time || '').slice(0, 5));
+    return [
+        ...appointmentCalendarEvents.filter(entry => isDateInEvent(entry, dateStr)),
+        ...getScheduleEvents().filter(entry => isDateInEvent(entry, dateStr))
+    ].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+}
+
+// "13:30" -> { time: '1:30', period: 'PM' }
+function formatClock(value) {
+    const match = /^(\d{1,2}):(\d{2})/.exec(String(value || ''));
+    if (!match) return null;
+    const hours = parseInt(match[1], 10);
+    return { time: `${hours % 12 || 12}:${match[2]}`, period: hours >= 12 ? 'PM' : 'AM' };
+}
+
+// Preset reasons are stored as slugs ("academic-concerns"); free-text
+// reasons (e.g. referral intake notes) are shown as written.
+function formatAppointmentReason(reason) {
+    const text = String(reason || '').trim();
+    return /^[a-z]+(-[a-z]+)*$/.test(text) ? capitalizeFirst(text.replace(/-/g, ' ')) : text;
+}
+
+function renderDayEntry(entry) {
+    const isAppointment = isAppointmentEntry(entry);
+    const meta = SCHEDULE_CATEGORY_META[getEventCategory(entry, isAppointment)];
+    const start = isAllDayEntry(entry) ? null : formatClock(entry.time);
+    const timeHtml = start
+        ? `<strong>${start.time}</strong><small>${start.period}</small>`
+        : '<strong>All</strong><small>day</small>';
+
+    let title;
+    let detail;
+    let statusHtml = '';
+    if (isAppointment) {
+        title = entry.student_name || entry.title || 'Student';
+        detail = formatAppointmentReason(entry.reason);
+        const status = APPOINTMENT_STATUS_META[entry.status] || APPOINTMENT_STATUS_META.pending;
+        statusHtml = `<span class="schedule-day-status ${status.className}">${status.label}</span>`;
+    } else {
+        title = entry.title || 'Event';
+        const end = start ? formatClock(entry.endTime) : null;
+        const firstDay = extractDatePart(entry.date);
+        const lastDay = extractDatePart(entry.endDate);
+        const shortDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        detail = [
+            lastDay && lastDay !== firstDay ? `${shortDate(firstDay)} – ${shortDate(lastDay)}` : '',
+            end ? `${start.time} ${start.period} – ${end.time} ${end.period}` : '',
+            // The label repeats the category when it is just "Event".
+            entry.type && entry.type !== 'None' && entry.type !== 'Event' ? entry.type : ''
+        ].filter(Boolean).join(' · ');
+    }
+
+    return `<button type="button" class="schedule-day-item ${meta.className}" data-entry-id="${escapeHtml(entry.id)}">
+        <span class="schedule-day-time">${timeHtml}</span>
+        <span class="schedule-day-main">
+            <span class="schedule-day-title-row">
+                <span class="schedule-day-title">${escapeHtml(title)}</span>
+                ${statusHtml}
+            </span>
+            <span class="schedule-day-meta"><i class="bi ${meta.icon}"></i> ${escapeHtml(meta.label)}</span>
+            ${detail ? `<span class="schedule-day-detail" title="${escapeHtml(detail)}">${escapeHtml(detail)}</span>` : ''}
+        </span>
+    </button>`;
+}
+
+function renderScheduleDayAgenda(dateStr) {
+    scheduleDayAgendaDate = dateStr;
+    const date = new Date(`${dateStr}T00:00:00`);
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    setText('scheduleDayMonth', date.toLocaleDateString('en-US', { month: 'short' }));
+    setText('scheduleDayNum', String(date.getDate()));
+    setText('scheduleDayWeekday', date.toLocaleDateString('en-US', { weekday: 'long' }));
+    setText('scheduleDayFull', date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }));
+
+    const entries = getDayEntries(dateStr);
+
+    // Per-category totals, styled like the calendar legend chips.
+    const counts = { online: 0, counseling: 0, event: 0 };
+    entries.forEach(entry => { counts[getEventCategory(entry, isAppointmentEntry(entry))] += 1; });
+    const countsEl = document.getElementById('scheduleDayCounts');
+    if (countsEl) {
+        countsEl.innerHTML = Object.entries(counts)
+            .filter(([, total]) => total > 0)
+            .map(([category, total]) => {
+                const meta = SCHEDULE_CATEGORY_META[category];
+                const plural = category === 'event' && total !== 1 ? 's' : '';
+                return `<span class="schedule-legend-item ${meta.className}"><i class="bi ${meta.icon}"></i> ${total} ${meta.short}${plural}</span>`;
+            })
+            .join('');
+    }
+
+    const listEl = document.getElementById('scheduleDayList');
+    if (listEl) {
+        listEl.innerHTML = entries.length
+            ? entries.map(renderDayEntry).join('')
+            : `<div class="schedule-day-empty">
+                   <i class="bi bi-calendar-check"></i>
+                   <strong>Nothing scheduled yet</strong>
+                   <span>No appointments or events on this day.</span>
+               </div>`;
+    }
+}
+
+// notice = '' shows the form beside the agenda; a message hides the form
+// and shows the agenda alone with that message (past days, weekends).
+function setScheduleDayViewOnly(notice) {
+    const content = document.querySelector('#createScheduleModal .schedule-day-modal');
+    if (content) content.classList.toggle('is-view-only', !!notice);
+    const noticeEl = document.getElementById('scheduleDayNotice');
+    if (noticeEl) {
+        noticeEl.hidden = !notice;
+        noticeEl.innerHTML = notice ? `<i class="bi bi-info-circle"></i><span>${escapeHtml(notice)}</span>` : '';
+    }
+}
+
+function openScheduleDayView(dateStr, notice) {
+    editingScheduleEventId = null;
+    selectedScheduleDate = ''; // nothing can be submitted from this view
+    const modal = document.getElementById('createScheduleModal');
+    const modalTitle = modal?.querySelector('.modal-header h2');
+    if (modalTitle) modalTitle.textContent = 'Day Schedule';
+    setScheduleDayViewOnly(notice);
+    renderScheduleDayAgenda(dateStr);
+    if (modal) modal.style.display = 'flex';
 }
 
 function openCreateScheduleModal(dateStr) {
-    // Check if the date has already passed
-    if (dateStr < getTodayDateStr()) {
-        showAlert('You cannot schedule an event for a date that has already passed.', 'error');
-        return;
-    }
-
-    // Check if selected date is a weekend
-    if (isWeekend(dateStr)) {
+    // Past dates and weekends can't take a new schedule, but if anything was
+    // booked on them the day's agenda still opens so it can be reviewed.
+    const isPast = dateStr < getTodayDateStr();
+    if (isPast || isWeekend(dateStr)) {
         const dayName = getWeekendName(dateStr);
-        showAlert(`${dayName} is not available. Please select a weekday.`, 'error');
+        if (getDayEntries(dateStr).length > 0) {
+            openScheduleDayView(dateStr, isPast
+                ? 'This date has already passed, so new schedules can\'t be added.'
+                : `${dayName} is not available for new schedules.`);
+        } else if (isPast) {
+            showAlert('You cannot schedule an event for a date that has already passed.', 'error');
+        } else {
+            showAlert(`${dayName} is not available. Please select a weekday.`, 'error');
+        }
         return;
     }
 
@@ -366,6 +549,8 @@ function openCreateScheduleModal(dateStr) {
     if (startTimeInput) startTimeInput.value = '';
     if (endTimeInput) endTimeInput.value = '';
     updateModalTimeFieldsVisibility();
+    setScheduleDayViewOnly('');
+    renderScheduleDayAgenda(dateStr);
 
     if (modal) modal.style.display = 'flex';
     setTimeout(() => titleInput?.focus(), 50);
@@ -408,6 +593,8 @@ function openEditScheduleModal(eventId) {
     if (startTimeInput) startTimeInput.value = event.allDay ? '' : (event.time || '');
     if (endTimeInput) endTimeInput.value = event.allDay ? '' : (event.endTime || '');
     updateModalTimeFieldsVisibility();
+    setScheduleDayViewOnly('');
+    if (event.date) renderScheduleDayAgenda(event.date);
 
     const viewModal = document.getElementById('viewEventModal');
     if (viewModal) viewModal.style.display = 'none';
@@ -421,6 +608,8 @@ function closeCreateScheduleModal() {
     if (modal) modal.style.display = 'none';
     selectedScheduleDate = '';
     editingScheduleEventId = null;
+    scheduleDayAgendaDate = '';
+    setScheduleDayViewOnly('');
 }
 
 function submitCreateScheduleModal(e) {
@@ -612,12 +801,19 @@ function loadAppointmentRequests() {
             return response.json();
         })
         .then(result => {
+            // The requests table was removed from the page; requests now only
+            // feed the calendar. Keep the table rendering null-safe in case
+            // the table is added back.
             const tbody = document.getElementById('appointmentRequestsBody');
-            
+
             if (!result.success || !result.data || result.data.length === 0) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests received</td>
-                </tr>`;
+                if (tbody) {
+                    tbody.innerHTML = `<tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests received</td>
+                    </tr>`;
+                }
+                appointmentCalendarEvents = [];
+                renderAppointmentCalendar();
                 return;
             }
 
@@ -638,13 +834,21 @@ function loadAppointmentRequests() {
                 counselor_notes: request.counselor_notes,
                 preferred_date: request.preferred_date,
                 preferred_time: request.preferred_time,
-                school_attended: request.school_attended
+                school_attended: request.school_attended,
+                booking_type: request.booking_type
             }));
 
             if (allRequests.length === 0) {
-                tbody.innerHTML = `<tr>
-                    <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests</td>
-                </tr>`;
+                if (tbody) {
+                    tbody.innerHTML = `<tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #999;">No appointment requests</td>
+                    </tr>`;
+                }
+                renderAppointmentCalendar();
+                return;
+            }
+
+            if (!tbody) {
                 renderAppointmentCalendar();
                 return;
             }

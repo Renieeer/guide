@@ -59,10 +59,56 @@
 
         <div class="auth-right">
             <div class="auth-box auth-register-box">
-                <h1>Create Your Student Account</h1>
-                <p class="auth-subtitle">Join our guidance management community today</p>
+                @php
+                    // ?role=teacher (the login page's Teacher button, or the
+                    // old /staff-register link) opens on the teacher form.
+                    $registerRole = request('role') === 'teacher' ? 'teacher' : 'student';
+                @endphp
+                <h1>Create Your Account</h1>
+                <p class="auth-subtitle" id="registerSubtitle"
+                   data-student="Join our guidance management community today"
+                   data-teacher="Enter the access code your school coordinator gave you, then set up your account">
+                    {{ $registerRole === 'teacher'
+                        ? 'Enter the access code your school coordinator gave you, then set up your account'
+                        : 'Join our guidance management community today' }}
+                </p>
 
-                <form id="registerForm" class="auth-form">
+                <form id="registerForm" class="auth-form" data-role="{{ $registerRole }}">
+                    <!-- Only students and teachers sign themselves up.
+                         Counselor and coordinator accounts are created by
+                         the SDO in School Management. The server enforces
+                         this too: api/register only accepts students, and
+                         a teacher account needs a coordinator-issued code
+                         (api/teacher-signup-request). -->
+                    <fieldset class="role-select">
+                        <legend>I am registering as</legend>
+                        <div class="role-select-options">
+                            <label class="role-option">
+                                <input type="radio" name="role" value="student" @checked($registerRole === 'student')>
+                                <span class="role-option-body">
+                                    <i class="bi bi-mortarboard"></i>
+                                    <span>Student</span>
+                                </span>
+                            </label>
+                            <label class="role-option">
+                                <input type="radio" name="role" value="teacher" @checked($registerRole === 'teacher')>
+                                <span class="role-option-body">
+                                    <i class="bi bi-person-workspace"></i>
+                                    <span>Teacher</span>
+                                </span>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-group" data-role-only="teacher" @if ($registerRole !== 'teacher') hidden @endif>
+                        <label for="accessCode">Coordinator Access Code *</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="accessCode" name="accessCode" placeholder="Code from your coordinator" required autocomplete="off" autocapitalize="characters" @disabled($registerRole !== 'teacher')>
+                        </div>
+                        <small class="error-text"></small>
+                        <small class="field-hint">Ask your school's guidance coordinator for a code. It confirms you're a teacher at their school.</small>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="firstName">First Name *</label>
@@ -87,22 +133,20 @@
                             <input type="email" id="email" name="email" placeholder="your@email.com" required>
                         </div>
                         <small class="error-text"></small>
+                        <small class="field-hint" data-role-only="teacher" @if ($registerRole !== 'teacher') hidden @endif>Use the same email your coordinator issued the code to.</small>
                     </div>
 
-                    <div class="form-group">
+                    <!-- Teachers don't pick a school: the access code
+                         carries the coordinator's school. -->
+                    <div class="form-group" data-role-only="student" @if ($registerRole !== 'student') hidden @endif>
                         <label for="school">School <span id="schoolRequired" style="color: #ef4444;">*</span></label>
                         <div class="input-wrapper">
-                            <select id="school" name="school" required>
+                            <select id="school" name="school" required @disabled($registerRole !== 'student')>
                                 <option value="">Loading schools...</option>
                             </select>
                         </div>
                         <small class="error-text"></small>
                     </div>
-
-                    <!-- Fixed to student — teacher accounts register at
-                         staff-register.php, and counselor/coordinator
-                         accounts are SDO-only via School Management. -->
-                    <input type="hidden" id="role" name="role" value="student">
 
                     <div class="form-row">
                         <div class="form-group">
@@ -183,8 +227,8 @@
                     <a href="{{ url('login') }}" class="auth-link">Sign In Here <i class="bi bi-arrow-right"></i></a>
                 </div>
 
-                <p class="text-muted" style="text-align:center; margin-top: 16px; font-size: 13px;">
-                    Teacher? <a href="{{ url('staff-register') }}" class="auth-link">Go to Teacher Registration</a>
+                <p class="register-choice-note">
+                    Counselor or coordinator? Your account is set up by the SDO. Just sign in.
                 </p>
             </div>
         </div>

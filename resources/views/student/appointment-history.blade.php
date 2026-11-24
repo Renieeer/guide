@@ -39,7 +39,7 @@
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-clock-history"></i> Records</div>
                     <h2 class="page-hero-title">My History</h2>
-                    <p class="page-hero-text">Every referral, counseling case, follow-up, and online appointment on your record — organized as folders you can open, with filters to find things fast.</p>
+                    <p class="page-hero-text">Your pending and in-progress referrals and counseling cases, with their follow-ups and online appointments. Cases that have been closed are no longer listed here.</p>
                 </div>
             </div>
 

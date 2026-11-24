@@ -21,7 +21,7 @@
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-building"></i> School Control</div>
                     <h2 class="page-hero-title">School Management</h2>
-                    <p class="page-hero-text" id="schoolManagementDesc">A read-only overview of every school in the district and who's assigned to it. Click Edit to add a school or change staff assignments.</p>
+                    <p class="page-hero-text" id="schoolManagementDesc">A read-only overview of every school in the division and who's assigned to it. Click Edit to add a school or change staff assignments.</p>
                 </div>
                 <div class="page-hero-actions">
                     <button type="button" id="openSchoolAssignmentModalBtn" class="btn btn-primary" hidden><i class="bi bi-plus-lg"></i> Add School</button>
@@ -75,6 +75,8 @@
 
                         <div id="coordinatorFields" class="assignment-person-card" style="display: none;">
                             <h3>Coordinator/Focalperson Details</h3>
+                            @include('sdo.partials.account-source', ['prefix' => 'coordinator'])
+                            <div class="new-account-fields" data-new-account="coordinator">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="coordinatorFirstName">First Name</label>
@@ -95,6 +97,7 @@
                                     <input type="password" id="coordinatorPassword" name="coordinatorPassword" minlength="8" placeholder="Minimum 8 characters" autocomplete="new-password">
                                 </div>
                             </div>
+                            </div>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Grade Assignment</label>
@@ -114,6 +117,8 @@
 
                         <div id="counselorFields" class="assignment-person-card" style="display: none;">
                             <h3>Counselor Details</h3>
+                            @include('sdo.partials.account-source', ['prefix' => 'counselor'])
+                            <div class="new-account-fields" data-new-account="counselor">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="counselorFirstName">First Name</label>
@@ -133,6 +138,7 @@
                                     <label for="counselorPassword">Password</label>
                                     <input type="password" id="counselorPassword" name="counselorPassword" minlength="8" placeholder="Minimum 8 characters" autocomplete="new-password">
                                 </div>
+                            </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
@@ -154,6 +160,8 @@
                         <div id="combinedFields" class="assignment-person-card" style="display: none;">
                             <h3>Combined Coordinator/Focalperson &amp; Counselor Details</h3>
                             <p class="text-muted" style="margin-top:-6px;">One login that acts as both coordinator and counselor for its assigned grades — e.g. a Senior High (Grade 11/12) team that manages itself within the same school.</p>
+                            @include('sdo.partials.account-source', ['prefix' => 'combined'])
+                            <div class="new-account-fields" data-new-account="combined">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="combinedFirstName">First Name</label>
@@ -173,6 +181,7 @@
                                     <label for="combinedPassword">Password</label>
                                     <input type="password" id="combinedPassword" name="combinedPassword" minlength="8" placeholder="Minimum 8 characters" autocomplete="new-password">
                                 </div>
+                            </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">

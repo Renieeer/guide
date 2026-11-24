@@ -6,7 +6,7 @@
     <script src="{{ asset('js/loader.js') }}?v={{ filemtime(public_path('js/loader.js')) }}"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>District Report Cases - Guidance Management System</title>
+    <title>Report Cases - Guidance Management System</title>
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
@@ -20,8 +20,8 @@
             <div class="page-hero">
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-file-earmark-text"></i> Documentation</div>
-                    <h2 class="page-hero-title">District Report Cases</h2>
-                    <p class="page-hero-text">Review all case reports from schools throughout the district and track outcomes.</p>
+                    <h2 class="page-hero-title">Report Cases</h2>
+                    <p class="page-hero-text">Review all case reports from every school in the division and track outcomes.</p>
                 </div>
                 <div class="page-hero-actions">
                     <button type="button" class="report-settings-btn" id="reportSettingsBtn" aria-label="Report Settings" data-tooltip="Report Settings">
@@ -32,10 +32,10 @@
 
             <!-- Page Content -->
             <div class="page-content">
-                <!-- District Navigation -->
+                <!-- School picker -->
                 <div class="card mb-5 dr-card-districts">
                     <div class="card-header">
-                        <div class="card-title">Select District</div>
+                        <div class="card-title">Select School</div>
                     </div>
                     <div class="district-search-row">
                         <div class="school-search-wrap district-search-wrap">
@@ -45,7 +45,7 @@
                     </div>
                     <div class="district-nav">
                         <div class="district-buttons" id="districtButtons">
-                            <p class="text-muted">Loading districts...</p>
+                            <p class="text-muted">Loading schools...</p>
                         </div>
                         <div class="district-pagination" id="districtPagination" hidden></div>
                     </div>
@@ -78,8 +78,8 @@
                 </div>
 
                 <!-- Cases by School (one row per school, with gender distribution) —
-                     only shown for the "All Districts" selection; a single district
-                     is already just that one district's category/grade table below. -->
+                     only shown for the "All Schools" selection; a single school
+                     is already just that one school's category/grade table below. -->
                 <div class="table-container mb-5" id="schoolBreakdownSection" hidden>
                     <div class="card-header">
                         <div class="card-title">Cases by School</div>
@@ -273,7 +273,7 @@
                             <button class="modal-close" id="closeReportSettingsModal">&times;</button>
                         </div>
                         <div class="modal-body">
-                            <p class="text-muted" style="margin-top: 0;">This header/footer prints on every PDF report exported from District Report Cases and School Reports. Upload one PDF containing a replacement letterhead and it'll be split into a header (top) and footer (bottom) band.</p>
+                            <p class="text-muted" style="margin-top: 0;">This header/footer prints on every PDF report exported from Report Cases and the SDO Dashboard. Upload one PDF containing a replacement letterhead and it'll be split into a header (top) and footer (bottom) band.</p>
 
                             <div id="reportLetterheadBuiltinNotice" style="display: none; margin-bottom: 20px;">
                                 <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">

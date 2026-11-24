@@ -75,7 +75,9 @@ function displayReferralProgress(referrals) {
     const viewLink = document.getElementById('viewReferralsLink');
 
     if (referrals.length === 0) {
-        preview.innerHTML = '<p style="color: #999; margin: 0; text-align: center;">No referrals yet</p>';
+        // Closed referrals aren't sent to students (see api/student-history),
+        // so "none" here means none open, not none ever.
+        preview.innerHTML = '<p style="color: #999; margin: 0; text-align: center;">No active referrals</p>';
         if (viewLink) viewLink.href = 'referral-status';
         return;
     }

@@ -1,0 +1,438 @@
+/* SDO Dashboard — the old Dashboard, School Reports and District Analytics
+   pages merged into one. Built on the app's own theme (.page-hero, .card,
+   .card-header, .table-container, .btn from css/style.css); only the
+   pieces with no existing equivalent live here. */
+
+:root {
+    --sdb-blue: #1d5aa8;
+    --sdb-aqua: #1baf7a;
+    --sdb-good: #1b7f5a;
+    --sdb-warn: #a15c00;
+    --sdb-critical: #b3261e;
+}
+
+.sdb-card {
+    margin-bottom: 24px;
+}
+
+.sdb-eyebrow {
+    font-size: 11.5px;
+    color: var(--ink-muted);
+}
+
+/* ---------- Filters ---------- */
+.sdb-filters {
+    margin-bottom: 24px;
+}
+
+.sdb-filters-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.sdb-filters-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sdb-filters-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sdb-updated {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+#sdbRefreshBtn.is-spinning i {
+    animation: sdb-spin 0.8s linear infinite;
+}
+
+@keyframes sdb-spin {
+    to { transform: rotate(360deg); }
+}
+
+.sdb-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px 16px;
+    align-items: end;
+}
+
+.sdb-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.sdb-field[hidden] {
+    display: none;
+}
+
+.sdb-field label,
+.sdb-field-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.sdb-field select,
+.sdb-field input {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+}
+
+.sdb-field select:focus,
+.sdb-field input:focus {
+    outline: none;
+    border-color: var(--navy-600);
+    box-shadow: 0 0 0 3px rgba(29, 90, 168, 0.15);
+}
+
+.sdb-segmented {
+    display: inline-flex;
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.sdb-segmented button {
+    flex: 1 1 0;
+    min-height: 37px;
+    padding: 6px 8px;
+    border: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sdb-segmented button:last-child {
+    border-right: 0;
+}
+
+.sdb-segmented button[aria-pressed="true"] {
+    background: var(--navy-700);
+    color: #fff;
+}
+
+.sdb-segmented button:focus-visible {
+    outline: 2px solid var(--navy-500);
+    outline-offset: -2px;
+}
+
+.sdb-filters-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.sdb-scope {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-muted);
+    min-width: 0;
+}
+
+.sdb-scope strong {
+    color: var(--ink);
+}
+
+.sdb-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* ---------- KPI tiles ---------- */
+.sdb-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.sdb-kpi {
+    background: #fff;
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.06);
+    min-width: 0;
+}
+
+.sdb-kpi-label {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sdb-kpi-value {
+    margin: 8px 0 4px;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--navy-900);
+    font-variant-numeric: tabular-nums;
+}
+
+.sdb-kpi-sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+/* ---------- Findings ---------- */
+.sdb-findings {
+    margin: 0;
+    padding: 4px 0 0 20px;
+    display: grid;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+}
+
+/* ---------- Charts ---------- */
+.sdb-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.sdb-chart {
+    position: relative;
+    height: 240px;
+}
+
+.sdb-chart-tall {
+    height: 300px;
+}
+
+.sdb-chart-donut {
+    height: 240px;
+}
+
+.sdb-donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    text-align: center;
+}
+
+.sdb-donut-center[hidden] {
+    display: none;
+}
+
+.sdb-donut-center strong {
+    font-size: 28px;
+    line-height: 1.1;
+    color: var(--sdb-blue);
+}
+
+.sdb-donut-center span {
+    font-size: 12px;
+    color: var(--ink-muted);
+}
+
+.sdb-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.sdb-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+.sdb-legend-item b {
+    color: var(--ink);
+}
+
+.sdb-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.sdb-empty {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--ink-muted);
+    text-align: center;
+}
+
+/* ---------- Tables ---------- */
+.sdb-card-header-tools {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sdb-table-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sdb-inline-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--ink-muted);
+}
+
+.sdb-inline-field input,
+.sdb-inline-field select {
+    min-height: 34px;
+    padding: 5px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    background: #fff;
+    color: var(--ink);
+}
+
+.sdb-table-wrap {
+    overflow-x: auto;
+    margin: 0;
+}
+
+.sdb-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.sdb-table th.num,
+.sdb-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.sdb-table tr.is-total td {
+    font-weight: 700;
+    background: var(--navy-050);
+}
+
+.sdb-table td.sdb-table-empty {
+    text-align: center;
+    color: var(--ink-muted);
+    padding: 24px 12px;
+}
+
+.sdb-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sdb-status.is-good { color: var(--sdb-good); }
+.sdb-status.is-warning { color: var(--sdb-warn); }
+.sdb-status.is-critical { color: var(--sdb-critical); }
+.sdb-status.is-none { color: var(--ink-muted); font-weight: 500; }
+
+.sdb-table-foot {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+.sdb-footnote {
+    margin: 4px 4px 24px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-muted);
+}
+
+/* ---------- Download preview ---------- */
+.sdb-preview-sheet + .sdb-preview-sheet {
+    margin-top: 24px;
+}
+
+.sdb-preview-sheet h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.sdb-preview-sheet h4 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.sdb-preview-sheet p {
+    margin: 0 0 6px;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #sdbRefreshBtn.is-spinning i { animation: none; }
+}
+
+@media (max-width: 1100px) {
+    .sdb-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+    .sdb-grid-2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+    .sdb-kpis { grid-template-columns: 1fr; }
+    .sdb-actions { width: 100%; }
+    .sdb-actions .btn { flex: 1 1 auto; }
+}

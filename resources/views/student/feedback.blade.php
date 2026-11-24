@@ -96,6 +96,42 @@
             padding-top: 10px;
             border-top: 1px solid var(--border-soft);
         }
+        /* Editing a sent rating in place (the only change allowed). */
+        .review-card.is-editing {
+            border-color: var(--navy-200);
+            box-shadow: 0 0 0 3px rgba(29, 90, 168, 0.08);
+        }
+        .review-edit {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .review-edit-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .review-edit .star-rating-input { font-size: 26px; }
+        .review-edit .star-rating-hint { margin-top: 0; }
+        .review-edit-comment {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            font: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .review-edit-comment:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(29, 90, 168, 0.15);
+        }
+        .review-edit-actions {
+            display: inline-flex;
+            gap: 8px;
+        }
         .review-list-empty {
             text-align: center;
             color: var(--text-light);
@@ -115,7 +151,7 @@
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-star"></i> Assessment</div>
                     <h2 class="page-hero-title">Feedback</h2>
-                    <p class="page-hero-text">Rate how your counselor handled your counseling sessions and referrals, and share your comments.</p>
+                    <p class="page-hero-text">Rate how your counselor handled a counseling session or referral once it has ended. You can send one rating for each, and edit it later.</p>
                 </div>
             </div>
 
@@ -180,8 +216,10 @@
                             <button type="button" class="btn btn-secondary" id="clearRatingFormBtn">Clear</button>
                         </div>
                     </form>
-                    <div id="ratingEmptyState" style="display: none; text-align: center; padding: 30px; color: #999;">
-                        You don't have any counseling sessions or referrals on record yet. Once you have one, you'll be able to rate it here.
+                    <!-- Text set by feedback.js: nothing has ended yet, or
+                         everything that ended is already rated. -->
+                    <div id="ratingEmptyState" style="display: none; text-align: center; padding: 30px; color: var(--text-light);">
+                        You can give feedback once a counseling session or referral has ended.
                     </div>
                 </div>
 
@@ -193,6 +231,6 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
-    <script src="{{ asset('pages/student/feedback.js') }}"></script>
+    <script src="{{ asset('pages/student/feedback.js') }}?v={{ filemtime(public_path('pages/student/feedback.js')) }}"></script>
 </body>
 </html>

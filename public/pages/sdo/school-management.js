@@ -19,13 +19,22 @@ let openSchoolCode = null;
 // deactivated (not deleted) once the replacement is created.
 let pendingReplaceAccountId = null;
 
+// "Existing account" picker in each role card of the assignment form
+// (resources/views/sdo/partials/account-source.blade.php): lets the SDO add
+// a person who already has an account to one more school instead of making
+// a second login. Every coordinator/counselor/combined account and its
+// schools, loaded the first time a picker is used.
+const ACCOUNT_SOURCE_PREFIXES = ['coordinator', 'counselor', 'combined'];
+let staffAccounts = null;
+let staffAccountsLoading = null;
+
 // Paginates the folder grid once the filtered result grows past one page —
 // short lists (the common case) never show pagination controls at all.
 const SCHOOL_FOLDER_PAGE_SIZE = 16;
 let schoolFolderPage = 1;
 
 const EDIT_MODE_DESC = 'Add schools, assign coordinator/counselor accounts, and manage staff access.';
-const VIEW_MODE_DESC = "A read-only overview of every school in the district and who's assigned to it. Click Edit to add a school or change staff assignments.";
+const VIEW_MODE_DESC = "A read-only overview of every school in the division and who's assigned to it. Click Edit to add a school or change staff assignments.";
 
 function initSidebarActive() {
     const url = window.location.href;
@@ -59,8 +68,202 @@ function initSchoolManagementPage() {
     initSchoolFoldersToolbar();
     initEditModeToggle();
     initGradeCheckboxGroups();
+    initAccountSourcePickers();
 
     loadSchoolAssignments();
+}
+
+/* ---------- New vs. existing account (assignment form) ---------- */
+
+function accountMode(prefix) {
+    const checked = document.querySelector(`input[name="${prefix}AccountMode"]:checked`);
+    return checked && checked.value === 'existing' ? 'existing' : 'new';
+}
+
+function roleCardShown(prefix) {
+    const card = document.getElementById(`${prefix}Fields`);
+    return Boolean(card) && card.style.display !== 'none';
+}
+
+function initAccountSourcePickers() {
+    ACCOUNT_SOURCE_PREFIXES.forEach(prefix => {
+        document.querySelectorAll(`input[name="${prefix}AccountMode"]`).forEach(radio => {
+            radio.addEventListener('change', () => applyAccountMode(prefix, true));
+        });
+
+        const search = document.getElementById(`${prefix}ExistingSearch`);
+        const results = document.getElementById(`${prefix}ExistingResults`);
+        const picker = document.querySelector(`[data-existing-picker="${prefix}"]`);
+        if (!search || !results || !picker) return;
+
+        search.addEventListener('input', () => renderExistingAccountResults(prefix));
+        search.addEventListener('focus', () => renderExistingAccountResults(prefix));
+        search.addEventListener('blur', () => setTimeout(() => hideExistingResults(prefix), 150));
+        search.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hideExistingResults(prefix);
+            if (e.key === 'Enter') {
+                // Enter picks the first selectable match instead of submitting the form.
+                e.preventDefault();
+                const first = results.querySelector('[data-account-id][aria-disabled="false"]');
+                if (first) selectExistingAccount(prefix, Number(first.dataset.accountId));
+            }
+        });
+        // mousedown (not click) so the search box's blur doesn't close the list first.
+        results.addEventListener('mousedown', (e) => {
+            const option = e.target.closest('[data-account-id]');
+            if (!option) return;
+            e.preventDefault();
+            if (option.getAttribute('aria-disabled') === 'true') return;
+            selectExistingAccount(prefix, Number(option.dataset.accountId));
+        });
+        picker.addEventListener('click', (e) => {
+            if (e.target.closest('[data-change-existing]')) clearExistingAccount(prefix, true);
+        });
+    });
+}
+
+function loadStaffAccounts() {
+    if (staffAccounts) return Promise.resolve(staffAccounts);
+    if (!staffAccountsLoading) {
+        staffAccountsLoading = fetch(`${SCHOOL_STAFF_ENDPOINT}?action=accounts`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.message || 'Failed to load staff accounts.');
+                staffAccounts = data.accounts || [];
+                return staffAccounts;
+            })
+            .finally(() => { staffAccountsLoading = null; });
+    }
+    return staffAccountsLoading;
+}
+
+// Shows the picker or the new-account fields. Name/email/password are only
+// required for a brand-new account.
+function applyAccountMode(prefix, focusSearch = false) {
+    const existing = accountMode(prefix) === 'existing';
+    const picker = document.querySelector(`[data-existing-picker="${prefix}"]`);
+    const newFields = document.querySelector(`[data-new-account="${prefix}"]`);
+    if (picker) picker.hidden = !existing;
+    if (newFields) newFields.hidden = existing;
+
+    const shown = roleCardShown(prefix);
+    ['FirstName', 'LastName', 'Email', 'Password'].forEach(suffix => {
+        const field = document.getElementById(`${prefix}${suffix}`);
+        if (field) field.required = shown && !existing;
+    });
+
+    if (existing) {
+        loadStaffAccounts().catch(err => showSchoolAssignmentAlert(err.message, 'error'));
+        if (focusSearch) document.getElementById(`${prefix}ExistingSearch`)?.focus();
+    }
+}
+
+function selectedExistingIds(exceptPrefix) {
+    return ACCOUNT_SOURCE_PREFIXES
+        .filter(p => p !== exceptPrefix && roleCardShown(p) && accountMode(p) === 'existing')
+        .map(p => Number(document.getElementById(`${p}ExistingId`)?.value || 0))
+        .filter(Boolean);
+}
+
+function accountSchoolsText(account) {
+    return account.schools.length
+        ? account.schools.map(s => `${s.schoolName} (${s.roleLabel})`).join(', ')
+        : 'No school yet';
+}
+
+function renderExistingAccountResults(prefix) {
+    const search = document.getElementById(`${prefix}ExistingSearch`);
+    const results = document.getElementById(`${prefix}ExistingResults`);
+    if (!search || !results) return;
+
+    const open = () => { results.classList.add('is-open'); search.setAttribute('aria-expanded', 'true'); };
+
+    if (!staffAccounts) {
+        results.innerHTML = '<div class="existing-account-empty">Loading accounts…</div>';
+        open();
+        loadStaffAccounts()
+            .then(() => { if (document.activeElement === search) renderExistingAccountResults(prefix); })
+            .catch(err => { results.innerHTML = `<div class="existing-account-empty">${escapeHtml(err.message)}</div>`; });
+        return;
+    }
+
+    const term = search.value.trim().toLowerCase();
+    const schoolName = (document.getElementById('schoolName')?.value || '').trim().toLowerCase();
+    const takenElsewhere = selectedExistingIds(prefix);
+    const matches = staffAccounts
+        .filter(a => !term || a.name.toLowerCase().includes(term) || String(a.email || '').toLowerCase().includes(term))
+        .slice(0, 8);
+
+    if (!matches.length) {
+        results.innerHTML = `<div class="existing-account-empty">${term ? 'No coordinator or counselor account matches that name or email.' : 'No coordinator or counselor accounts yet.'}</div>`;
+        open();
+        return;
+    }
+
+    results.innerHTML = matches.map(a => {
+        const atThisSchool = schoolName && a.schools.some(s => s.schoolName.toLowerCase() === schoolName);
+        const reason = !a.active ? 'Deactivated'
+            : atThisSchool ? 'Already at this school'
+            : takenElsewhere.includes(a.accountId) ? 'Chosen for the other role'
+            : '';
+        return `
+            <div class="existing-account-option${reason ? ' is-disabled' : ''}" role="option" data-account-id="${escapeHtml(a.accountId)}" aria-disabled="${reason ? 'true' : 'false'}">
+                <div class="existing-account-name">${escapeHtml(a.name)}${reason ? ` <span class="existing-account-flag">${escapeHtml(reason)}</span>` : ''}</div>
+                <div class="existing-account-meta">${escapeHtml(a.email || '')}</div>
+                <div class="existing-account-meta"><i class="bi bi-building"></i> ${escapeHtml(accountSchoolsText(a))}</div>
+            </div>`;
+    }).join('');
+    open();
+}
+
+function hideExistingResults(prefix) {
+    document.getElementById(`${prefix}ExistingResults`)?.classList.remove('is-open');
+    document.getElementById(`${prefix}ExistingSearch`)?.setAttribute('aria-expanded', 'false');
+}
+
+function selectExistingAccount(prefix, accountId) {
+    const account = (staffAccounts || []).find(a => a.accountId === accountId);
+    const picker = document.querySelector(`[data-existing-picker="${prefix}"]`);
+    if (!account || !picker) return;
+
+    document.getElementById(`${prefix}ExistingId`).value = String(accountId);
+    const initials = account.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+    const selected = picker.querySelector('[data-existing-selected]');
+    selected.innerHTML = `
+        <span class="existing-account-avatar" aria-hidden="true">${escapeHtml(initials)}</span>
+        <div class="existing-account-selected-text">
+            <div class="existing-account-name">${escapeHtml(account.name)}</div>
+            <div class="existing-account-meta">${escapeHtml(account.email || '')}</div>
+            <div class="existing-account-meta"><i class="bi bi-building"></i> Works at: ${escapeHtml(accountSchoolsText(account))}</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" data-change-existing>Change</button>`;
+    selected.hidden = false;
+    picker.classList.add('has-selection');
+    hideExistingResults(prefix);
+}
+
+function clearExistingAccount(prefix, focusSearch = false) {
+    const picker = document.querySelector(`[data-existing-picker="${prefix}"]`);
+    const idField = document.getElementById(`${prefix}ExistingId`);
+    const search = document.getElementById(`${prefix}ExistingSearch`);
+    if (idField) idField.value = '';
+    if (picker) {
+        picker.classList.remove('has-selection');
+        const selected = picker.querySelector('[data-existing-selected]');
+        if (selected) { selected.hidden = true; selected.innerHTML = ''; }
+    }
+    if (search) {
+        search.value = '';
+        if (focusSearch) search.focus();
+    }
+}
+
+function resetAccountSource(prefix) {
+    const newRadio = document.querySelector(`input[name="${prefix}AccountMode"][value="new"]`);
+    if (newRadio) newRadio.checked = true;
+    clearExistingAccount(prefix);
+    hideExistingResults(prefix);
+    applyAccountMode(prefix);
 }
 
 function initSchoolDetailModal() {
@@ -239,10 +442,16 @@ function toggleAssignmentFields() {
 function setRoleFieldsRequired(rolePrefix, isRequired) {
     const ids = ['FirstName', 'LastName', 'Email', 'Password'];
 
+    // A hidden role card goes back to "New account" with nothing picked.
+    if (!isRequired) {
+        resetAccountSource(rolePrefix);
+    }
+
     ids.forEach(suffix => {
         const element = document.getElementById(`${rolePrefix}${suffix}`);
         if (element) {
-            element.required = isRequired;
+            // Only a brand-new account needs these filled in.
+            element.required = isRequired && accountMode(rolePrefix) === 'new';
             if (!isRequired) {
                 element.value = '';
             }
@@ -265,6 +474,8 @@ function getRolePayload(rolePrefix) {
     ).map(cb => cb.value);
 
     return {
+        mode: accountMode(rolePrefix),
+        accountId: Number(document.getElementById(`${rolePrefix}ExistingId`)?.value || 0),
         firstName: document.getElementById(`${rolePrefix}FirstName`)?.value.trim() || '',
         lastName: document.getElementById(`${rolePrefix}LastName`)?.value.trim() || '',
         email: document.getElementById(`${rolePrefix}Email`)?.value.trim() || '',
@@ -302,9 +513,10 @@ function resetAssignmentModal() {
 
     const intro = document.getElementById('schoolAssignmentIntro');
     if (intro) {
-        intro.textContent = 'Add a school and assign a coordinator, counselor, or both.';
+        intro.textContent = 'Add a school and assign a coordinator, counselor, or both. A person who already has an account can be added here too; choose "Existing account".';
     }
 
+    ACCOUNT_SOURCE_PREFIXES.forEach(resetAccountSource);
     toggleAssignmentFields();
 }
 
@@ -352,8 +564,8 @@ function openAssignRoleModal(btn) {
             : role === 'coordinator' ? 'a coordinator/focalperson'
             : `a ${role}`;
         intro.textContent = pendingReplaceAccountId
-            ? `Replace the ${roleLabel} account for ${schoolName}. The previous account will be deactivated and kept on record, not deleted.`
-            : `Assign ${roleLabel} account to ${schoolName}.`;
+            ? `Replace the ${roleLabel} account for ${schoolName}. The previous account is taken off this school; if this was its only school, it's deactivated and kept on record, not deleted.`
+            : `Assign ${roleLabel} account to ${schoolName}. Create a new account, or choose "Existing account" to give someone who already has one this school too.`;
     }
 
     toggleAssignmentFields();
@@ -369,6 +581,16 @@ async function handleSchoolAssignmentSubmit(event) {
     const schoolName = document.getElementById('schoolName')?.value.trim() || '';
     const assignType = document.getElementById('assignType')?.value || '';
     const schoolLevel = document.getElementById('schoolLevel')?.value || 'Secondary';
+
+    // An "Existing account" card needs someone picked before saving.
+    const missingPick = ACCOUNT_SOURCE_PREFIXES.find(prefix =>
+        roleCardShown(prefix) && accountMode(prefix) === 'existing' && !Number(document.getElementById(`${prefix}ExistingId`)?.value || 0));
+    if (missingPick) {
+        const label = missingPick === 'combined' ? 'combined coordinator & counselor' : missingPick;
+        showSchoolAssignmentAlert(`Choose the existing ${label} account, or switch that card back to "New account".`, 'error');
+        document.getElementById(`${missingPick}ExistingSearch`)?.focus();
+        return;
+    }
 
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -401,6 +623,7 @@ async function handleSchoolAssignmentSubmit(event) {
         }
 
         showSchoolAssignmentAlert(data.message || 'School assignment saved.', 'success');
+        staffAccounts = null; // schools changed; reload the picker list next time
         resetAssignmentModal();
         await loadSchoolAssignments();
         closeModal('schoolAssignmentModal');
@@ -689,9 +912,9 @@ function buildSchoolDetailContent(item) {
 
     return `
         ${buildSchoolInfoEdit(item)}
-        ${buildRoleSlot('COORDINATOR/FOCALPERSON', item.coordinator, 'coordinator', item.schoolName, item.schoolLevel)}
-        ${buildCounselorRoleSlot(item.counselors, item.schoolName, item.schoolLevel)}
-        ${buildRoleSlot('COMBINED', item.combined, 'combined', item.schoolName, item.schoolLevel)}
+        ${buildRoleSlot('COORDINATOR/FOCALPERSON', item.coordinator, 'coordinator', item.schoolName, item.schoolLevel, item.schoolCode)}
+        ${buildCounselorRoleSlot(item.counselors, item.schoolName, item.schoolLevel, item.schoolCode)}
+        ${buildRoleSlot('COMBINED', item.combined, 'combined', item.schoolName, item.schoolLevel, item.schoolCode)}
         <div class="school-folder-footer">
             <span class="school-folder-id">ID ${escapeHtml(String(item.schoolCode || '').toUpperCase())} &middot; ${escapeHtml(item.schoolLevel || 'Secondary')}</span>
             ${revokeBtn}
@@ -723,12 +946,88 @@ function wireSchoolDetailEvents(container) {
     container.querySelectorAll('[data-save-school-info]').forEach(btn => {
         btn.addEventListener('click', () => saveSchoolInfo(btn));
     });
+
+    container.querySelectorAll('[data-unassign]').forEach(btn => {
+        btn.addEventListener('click', () => unassignFromSchool(btn));
+    });
+}
+
+// Where else a multi-school person works, and which school they're in right
+// now (they switch from their own dashboard). Nothing for single-school staff.
+function personSchoolsHtml(person, schoolName) {
+    const others = person.otherSchools || [];
+    if (!others.length) return '';
+
+    const currentOther = others.find(s => s.workingHere);
+    const status = person.workingHere
+        ? `<span class="staff-school-status is-here"><i class="bi bi-geo-alt-fill"></i> Working at ${escapeHtml(schoolName)} right now</span>`
+        : `<span class="staff-school-status"><i class="bi bi-geo-alt"></i> Working at ${escapeHtml(currentOther ? currentOther.schoolName : 'another school')} right now</span>`;
+    const chips = others.map(s =>
+        `<span class="staff-school-chip" title="${escapeHtml(s.roleLabel)}">${escapeHtml(s.schoolName)} <span class="staff-school-chip-role">${escapeHtml(s.roleLabel)}</span></span>`
+    ).join('');
+
+    return `
+        <div class="staff-schools">
+            ${status}
+            <div class="staff-school-chips"><span class="staff-school-chips-label">Also assigned to</span>${chips}</div>
+        </div>`;
+}
+
+// Edit-mode controls shared by every staff account block in a school.
+function personControlsHtml(person, roleKey, schoolName, schoolLevel, schoolCode) {
+    const isActive = person.active !== false;
+    const schoolCount = 1 + (person.otherSchools || []).length;
+    const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
+    const toggleLabel = isActive ? 'Deactivate' : 'Activate';
+    const removeBtn = schoolCount > 1
+        ? `<button type="button" class="btn btn-secondary btn-sm" data-unassign data-account-id="${escapeHtml(person.accountId)}" data-school-code="${escapeHtml(schoolCode)}" data-school-name="${escapeHtml(schoolName)}" data-person-name="${escapeHtml(person.name)}" data-other-count="${schoolCount - 1}"><i class="bi bi-box-arrow-right"></i> Remove from this school</button>`
+        : '';
+    return `
+        <div class="school-role-controls">
+            ${buildGradeCheckboxes(person.accountId, person.grade || '', schoolLevel)}
+            <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${escapeHtml(person.accountId)}" data-school-code="${escapeHtml(schoolCode)}">Save</button>
+            <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${escapeHtml(person.accountId)}" data-active="${isActive ? '1' : '0'}" data-school-count="${schoolCount}">${toggleLabel}</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-assign-role="${escapeHtml(roleKey)}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${escapeHtml(person.accountId)}">Replace Account</button>
+            ${removeBtn}
+        </div>`;
+}
+
+async function unassignFromSchool(btn) {
+    const name = btn.getAttribute('data-person-name') || 'This person';
+    const schoolName = btn.getAttribute('data-school-name') || 'this school';
+    const others = Number(btn.getAttribute('data-other-count') || 0);
+    if (!window.confirm(`Remove ${name} from ${schoolName}? They keep their other ${others} school${others === 1 ? '' : 's'} and their login.`)) {
+        return;
+    }
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Removing...';
+    try {
+        const response = await fetch(SCHOOL_STAFF_ENDPOINT, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'unassign', accountId: btn.getAttribute('data-account-id'), schoolCode: btn.getAttribute('data-school-code') })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to remove the account from this school.');
+        }
+        showSchoolAssignmentAlert(data.message || 'Account removed from this school.', 'success');
+        staffAccounts = null;
+        await loadSchoolAssignments();
+        refreshOpenSchoolDetail();
+    } catch (error) {
+        showSchoolAssignmentAlert(error.message || 'Failed to remove the account from this school.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
 }
 
 // Renders one role's block inside the detail modal. View mode: plain
 // read-only text. Edit mode: a grade checkbox group + activate/deactivate,
 // or an "assign an account" shortcut into the Add School modal when empty.
-function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
+function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel, schoolCode) {
     if (!person || !person.name) {
         const assignBtn = editMode
             ? `<button type="button" class="school-role-assign-btn" data-assign-role="${escapeHtml(roleKey)}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}">+ Assign an account</button>`
@@ -750,18 +1049,9 @@ function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
     const badgeLabel = isActive ? 'Active' : 'Inactive';
     const email = person.email ? `<div class="school-role-email">${escapeHtml(person.email)}</div>` : '';
 
-    const details = editMode ? (() => {
-        const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-        const toggleLabel = isActive ? 'Deactivate' : 'Activate';
-        return `
-            <div class="school-role-controls">
-                ${buildGradeCheckboxes(person.accountId, person.grade || '', schoolLevel)}
-                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${escapeHtml(person.accountId)}">Save</button>
-                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${escapeHtml(person.accountId)}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="${escapeHtml(roleKey)}" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${escapeHtml(person.accountId)}">Replace Account</button>
-            </div>
-        `;
-    })() : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
+    const details = editMode
+        ? personControlsHtml(person, roleKey, schoolName, schoolLevel, schoolCode)
+        : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
 
     return `
         <div class="school-role-slot">
@@ -771,6 +1061,7 @@ function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
             </div>
             <div class="school-role-name">${escapeHtml(person.name)}</div>
             ${email}
+            ${personSchoolsHtml(person, schoolName)}
             ${details}
         </div>
     `;
@@ -782,7 +1073,7 @@ function buildRoleSlot(label, person, roleKey, schoolName, schoolLevel) {
 // Renders one slot header plus one buildCounselorAccountBlock() per account,
 // and an "assign"/"add another" button (edit mode only) that's available
 // even when accounts already exist.
-function buildCounselorRoleSlot(counselors, schoolName, schoolLevel) {
+function buildCounselorRoleSlot(counselors, schoolName, schoolLevel, schoolCode) {
     const list = counselors || [];
 
     const assignBtn = editMode
@@ -811,7 +1102,7 @@ function buildCounselorRoleSlot(counselors, schoolName, schoolLevel) {
                 <span class="school-role-label">COUNSELOR</span>
                 <span class="badge badge-completed">${countLabel}</span>
             </div>
-            ${list.map(person => buildCounselorAccountBlock(person, schoolName, schoolLevel)).join('')}
+            ${list.map(person => buildCounselorAccountBlock(person, schoolName, schoolLevel, schoolCode)).join('')}
             ${assignBtn}
         </div>
     `;
@@ -821,24 +1112,15 @@ function buildCounselorRoleSlot(counselors, schoolName, schoolLevel) {
 // grade checkboxes, Save, Activate/Deactivate, and Replace Account — mirrors
 // buildRoleSlot's non-empty branch, just without the outer slot header since
 // buildCounselorRoleSlot already drew one shared header above the list.
-function buildCounselorAccountBlock(person, schoolName, schoolLevel) {
+function buildCounselorAccountBlock(person, schoolName, schoolLevel, schoolCode) {
     const isActive = person.active !== false;
     const badgeClass = isActive ? 'badge-completed' : 'badge-rejected';
     const badgeLabel = isActive ? 'Active' : 'Inactive';
     const email = person.email ? `<div class="school-role-email">${escapeHtml(person.email)}</div>` : '';
 
-    const details = editMode ? (() => {
-        const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-        const toggleLabel = isActive ? 'Deactivate' : 'Activate';
-        return `
-            <div class="school-role-controls">
-                ${buildGradeCheckboxes(person.accountId, person.grade || '', schoolLevel)}
-                <button type="button" class="btn btn-secondary btn-sm" data-save-grade data-account-id="${escapeHtml(person.accountId)}">Save</button>
-                <button type="button" class="btn ${toggleBtnClass} btn-sm" data-toggle-active data-account-id="${escapeHtml(person.accountId)}" data-active="${isActive ? '1' : '0'}">${toggleLabel}</button>
-                <button type="button" class="btn btn-secondary btn-sm" data-assign-role="counselor" data-school-name="${escapeHtml(schoolName)}" data-school-level="${escapeHtml(schoolLevel || 'Secondary')}" data-replace-account-id="${escapeHtml(person.accountId)}">Replace Account</button>
-            </div>
-        `;
-    })() : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
+    const details = editMode
+        ? personControlsHtml(person, 'counselor', schoolName, schoolLevel, schoolCode)
+        : `<div class="text-sm text-muted">${escapeHtml(gradeDisplayLabel(person.grade, schoolLevel))}</div>`;
 
     return `
         <div class="school-role-account">
@@ -847,6 +1129,7 @@ function buildCounselorAccountBlock(person, schoolName, schoolLevel) {
                 <span class="badge ${badgeClass}">${badgeLabel}</span>
             </div>
             ${email}
+            ${personSchoolsHtml(person, schoolName)}
             ${details}
         </div>
     `;
@@ -854,6 +1137,8 @@ function buildCounselorAccountBlock(person, schoolName, schoolLevel) {
 
 async function saveInlineGrade(btn) {
     const accountId = btn.getAttribute('data-account-id');
+    // Grades are per school: this school's assignment only.
+    const schoolCode = btn.getAttribute('data-school-code') || '';
     const group = document.querySelector(`.grade-checkbox-group[data-account-id="${accountId}"]`);
     if (!accountId || !group) return;
 
@@ -869,7 +1154,7 @@ async function saveInlineGrade(btn) {
         const response = await fetch(SCHOOL_STAFF_ENDPOINT, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'updateGrade', accountId, grade })
+            body: JSON.stringify({ action: 'updateGrade', accountId, grade, schoolCode })
         });
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -892,9 +1177,15 @@ async function toggleAccountActive(btn) {
     const nextActive = !currentlyActive;
     if (!accountId) return;
 
+    // Activation is for the whole login, so it covers every school they're at.
+    const schoolCount = Number(btn.getAttribute('data-school-count') || 1);
     const confirmMessage = nextActive
-        ? 'Reactivate this account? The user will be able to log in again.'
-        : 'Deactivate this account? The user will not be able to log in until reactivated.';
+        ? (schoolCount > 1
+            ? `Reactivate this account? The user will be able to log in again, at all ${schoolCount} of their schools.`
+            : 'Reactivate this account? The user will be able to log in again.')
+        : (schoolCount > 1
+            ? `Deactivate this account? The user will lose access to all ${schoolCount} of their schools until reactivated. To take them off only this school, use "Remove from this school".`
+            : 'Deactivate this account? The user will not be able to log in until reactivated.');
     if (!window.confirm(confirmMessage)) {
         return;
     }

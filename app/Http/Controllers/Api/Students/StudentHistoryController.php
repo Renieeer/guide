@@ -376,6 +376,17 @@ class StudentHistoryController extends Controller
             }
         }
 
+        // A student's own History page (and their dashboard, which reads this
+        // same endpoint) lists only cases that are still open — Pending or
+        // In Progress. Closed/completed ones are left out of the response
+        // entirely. Staff (counselor, coordinator, other-school, SDO) still
+        // get every record, closed ones included. Decided by the logged-in
+        // account, not the page's role=student flag.
+        if (api_role() === 'student') {
+            [$referrals, $counseling, $followUps, $appointments] =
+                $this->only_open_cases($referrals, $counseling, $followUps, $appointments);
+        }
+
         $studentName = trim(($student['FirstName'] ?? '') . ' ' . ($student['LastName'] ?? ''));
 
         $this->send_json(200, [
@@ -418,6 +429,47 @@ class StudentHistoryController extends Controller
                 'appointments' => count($appointments)
             ]
         ]);
+    }
+
+    /** Statuses that mean a referral or counseling case is still open. */
+    private const OPEN_CASE_STATUSES = ['pending', 'in-progress'];
+
+    private function is_open_status($status): bool {
+        $s = preg_replace('/[\s_]+/', '-', strtolower(trim((string)$status)));
+        return in_array($s === '' ? 'pending' : $s, self::OPEN_CASE_STATUSES, true);
+    }
+
+    /**
+     * Drops closed cases for the student's own view:
+     * - referrals at Stage 7 (Case Closing), whether "completed" or
+     *   "rejected", or with any status other than pending/in-progress;
+     * - counseling cases that were ended ("closed");
+     * - follow-up notes and booked appointments that belong to a closed
+     *   case, so they don't linger as loose entries. A student's own
+     *   appointment request has no case_uid and always stays.
+     */
+    private function only_open_cases(array $referrals, array $counseling, array $followUps, array $appointments): array {
+        $referrals = array_values(array_filter(
+            $referrals,
+            fn ($r) => (int)($r['stage'] ?? 1) < 7 && $this->is_open_status($r['status'] ?? 'pending')
+        ));
+
+        $closedCaseUids = [];
+        foreach ($counseling as $c) {
+            if (!$this->is_open_status($c['status'] ?? 'pending') && ($c['case_uid'] ?? '') !== '') {
+                $closedCaseUids[$c['case_uid']] = true;
+            }
+        }
+        $counseling = array_values(array_filter(
+            $counseling,
+            fn ($c) => $this->is_open_status($c['status'] ?? 'pending')
+        ));
+
+        $notInClosedCase = fn ($row) => ($row['case_uid'] ?? '') === '' || !isset($closedCaseUids[$row['case_uid']]);
+        $followUps = array_values(array_filter($followUps, $notInClosedCase));
+        $appointments = array_values(array_filter($appointments, $notInClosedCase));
+
+        return [$referrals, $counseling, $followUps, $appointments];
     }
 
     private function send_json(int $statusCode, array $payload): void {

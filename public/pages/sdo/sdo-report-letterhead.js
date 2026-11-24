@@ -58,8 +58,8 @@ const SDO_LETTERHEAD_BAND_GAP = 6; // mm breathing room between an image band an
 // today's exact hardcoded design when this is null.
 let sdoLetterheadOverride = null;
 
-// Called once from district-report-cases.js's and school-reports.js's own
-// init, before either page's first possible export.
+// Called once from district-report-cases.js's and dashboard.js's own init,
+// before either page's first possible export.
 async function loadSdoReportLetterheadOverride() {
     sdoLetterheadOverride = null;
     try {

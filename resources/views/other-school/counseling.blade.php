@@ -142,19 +142,36 @@
 
                 <div class="recent-drafts-toolbar">
                     <div class="toolbar-label"><i class="bi bi-sliders"></i> Filter by</div>
-                    <div class="filter-group">
+                    <div class="filter-group filter-group-search">
+                        <label for="draftStudentSearch">Student</label>
+                        <div class="draft-search-wrap">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" id="draftStudentSearch" placeholder="Search student name..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="filter-group filter-group-section">
                         <label for="draftSectionFilter">Section (Range)</label>
                         <select id="draftSectionFilter">
                             <option value="">All sections</option>
                         </select>
                     </div>
-                    <div class="filter-group">
+                    <div class="filter-group filter-group-category">
                         <label for="draftCategoryFilter">Category</label>
                         <select id="draftCategoryFilter">
                             <option value="">All categories</option>
                         </select>
                     </div>
-                    <div class="filter-group">
+                    <div class="filter-group filter-group-date">
+                        <label for="draftDateFilter">Date</label>
+                        <input type="date" id="draftDateFilter">
+                    </div>
+                    <div class="filter-group filter-group-year">
+                        <label for="draftYearFilter">Year</label>
+                        <select id="draftYearFilter">
+                            <option value="">All years</option>
+                        </select>
+                    </div>
+                    <div class="filter-group filter-group-status">
                         <label for="draftStatusFilter">Status</label>
                         <select id="draftStatusFilter">
                             <option value="">All statuses</option>

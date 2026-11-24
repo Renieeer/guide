@@ -30,7 +30,7 @@ class GetCaseSectionController extends Controller
 
                 if ($sectionName === '') {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'Section name is required.']);
+                    json_out(['success' => false, 'message' => 'Category name is required.']);
                 }
 
                 $dup = $conn->prepare('SELECT SectionID FROM section WHERE LOWER(SectionName) = LOWER(?) LIMIT 1');
@@ -41,7 +41,7 @@ class GetCaseSectionController extends Controller
 
                 if ($exists) {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'A section with that name already exists.']);
+                    json_out(['success' => false, 'message' => 'A category with that name already exists.']);
                 }
 
                 // SectionID/SectionCode have no auto-increment — assigned by hand,
@@ -58,13 +58,13 @@ class GetCaseSectionController extends Controller
                 if (!$stmt->execute()) {
                     $stmt->close();
                     http_response_code(500);
-                    json_out(['success' => false, 'message' => 'Failed to add section.']);
+                    json_out(['success' => false, 'message' => 'Failed to add category.']);
                 }
                 $stmt->close();
 
                 json_out([
                     'success' => true,
-                    'message' => 'Section added successfully.',
+                    'message' => 'Category added successfully.',
                     'section' => ['SectionID' => $nextId, 'SectionCode' => $code, 'SectionName' => $sectionName]
                 ]);
             }
@@ -75,7 +75,7 @@ class GetCaseSectionController extends Controller
 
                 if ($sectionId <= 0 || $sectionName === '') {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'Section and new name are required.']);
+                    json_out(['success' => false, 'message' => 'Category and new name are required.']);
                 }
 
                 $existsCheck = $conn->prepare('SELECT SectionID FROM section WHERE SectionID = ?');
@@ -86,7 +86,7 @@ class GetCaseSectionController extends Controller
 
                 if (!$found) {
                     http_response_code(404);
-                    json_out(['success' => false, 'message' => 'Section was not found.']);
+                    json_out(['success' => false, 'message' => 'Category was not found.']);
                 }
 
                 $dup = $conn->prepare('SELECT SectionID FROM section WHERE LOWER(SectionName) = LOWER(?) AND SectionID != ? LIMIT 1');
@@ -97,7 +97,7 @@ class GetCaseSectionController extends Controller
 
                 if ($exists) {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'A section with that name already exists.']);
+                    json_out(['success' => false, 'message' => 'A category with that name already exists.']);
                 }
 
                 $stmt = $conn->prepare('UPDATE section SET SectionName = ? WHERE SectionID = ?');
@@ -106,13 +106,13 @@ class GetCaseSectionController extends Controller
                 if (!$stmt->execute()) {
                     $stmt->close();
                     http_response_code(500);
-                    json_out(['success' => false, 'message' => 'Failed to update section.']);
+                    json_out(['success' => false, 'message' => 'Failed to update category.']);
                 }
                 $stmt->close();
 
                 json_out([
                     'success' => true,
-                    'message' => 'Section updated successfully.',
+                    'message' => 'Category updated successfully.',
                     'section' => ['SectionID' => $sectionId, 'SectionName' => $sectionName]
                 ]);
             }
@@ -121,9 +121,14 @@ class GetCaseSectionController extends Controller
                 $sectionId = (int)($input['sectionId'] ?? 0);
                 $categoryName = $this->clean_label_text((string)($input['categoryName'] ?? ''));
 
+                // SDO Case Management calls a section a "category" and a
+                // category a "violation"; coordinators (who can also add one
+                // from their Report page) keep the original names.
+                $sdoTerms = api_is_sdo();
+
                 if ($sectionId <= 0 || $categoryName === '') {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'Section and category name are required.']);
+                    json_out(['success' => false, 'message' => $sdoTerms ? 'Category and violation name are required.' : 'Section and category name are required.']);
                 }
 
                 $section = $conn->prepare('SELECT SectionID, SectionCode, SectionName FROM section WHERE SectionID = ?');
@@ -134,7 +139,7 @@ class GetCaseSectionController extends Controller
 
                 if (!$sectionRow) {
                     http_response_code(404);
-                    json_out(['success' => false, 'message' => 'Selected section was not found.']);
+                    json_out(['success' => false, 'message' => $sdoTerms ? 'Selected category was not found.' : 'Selected section was not found.']);
                 }
 
                 $dup = $conn->prepare('SELECT CaseId FROM case_category WHERE SectionID = ? AND LOWER(CategoryName) = LOWER(?) LIMIT 1');
@@ -145,7 +150,7 @@ class GetCaseSectionController extends Controller
 
                 if ($exists) {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'That category already exists under this section.']);
+                    json_out(['success' => false, 'message' => $sdoTerms ? 'That violation already exists under this category.' : 'That category already exists under this section.']);
                 }
 
                 // CaseId is a varchar PK with no auto-increment, but every existing
@@ -159,13 +164,13 @@ class GetCaseSectionController extends Controller
                 if (!$stmt->execute()) {
                     $stmt->close();
                     http_response_code(500);
-                    json_out(['success' => false, 'message' => 'Failed to add case category.']);
+                    json_out(['success' => false, 'message' => $sdoTerms ? 'Failed to add violation.' : 'Failed to add case category.']);
                 }
                 $stmt->close();
 
                 json_out([
                     'success' => true,
-                    'message' => 'Case category added successfully.',
+                    'message' => $sdoTerms ? 'Violation added successfully.' : 'Case category added successfully.',
                     'category' => [
                         'CaseId' => $nextId,
                         'SectionID' => $sectionId,
@@ -183,7 +188,7 @@ class GetCaseSectionController extends Controller
 
                 if ($caseId === '' || $sectionId <= 0 || $categoryName === '') {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'Category, section, and name are required.']);
+                    json_out(['success' => false, 'message' => 'Violation, category, and name are required.']);
                 }
 
                 $existsCheck = $conn->prepare('SELECT CaseId FROM case_category WHERE CaseId = ?');
@@ -194,7 +199,7 @@ class GetCaseSectionController extends Controller
 
                 if (!$found) {
                     http_response_code(404);
-                    json_out(['success' => false, 'message' => 'Case category was not found.']);
+                    json_out(['success' => false, 'message' => 'Violation was not found.']);
                 }
 
                 $section = $conn->prepare('SELECT SectionID, SectionCode, SectionName FROM section WHERE SectionID = ?');
@@ -205,7 +210,7 @@ class GetCaseSectionController extends Controller
 
                 if (!$sectionRow) {
                     http_response_code(404);
-                    json_out(['success' => false, 'message' => 'Selected section was not found.']);
+                    json_out(['success' => false, 'message' => 'Selected category was not found.']);
                 }
 
                 $dup = $conn->prepare('SELECT CaseId FROM case_category WHERE SectionID = ? AND LOWER(CategoryName) = LOWER(?) AND CaseId != ? LIMIT 1');
@@ -216,7 +221,7 @@ class GetCaseSectionController extends Controller
 
                 if ($exists) {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'That category already exists under this section.']);
+                    json_out(['success' => false, 'message' => 'That violation already exists under this category.']);
                 }
 
                 $stmt = $conn->prepare('UPDATE case_category SET SectionID = ?, CategoryName = ? WHERE CaseId = ?');
@@ -225,13 +230,13 @@ class GetCaseSectionController extends Controller
                 if (!$stmt->execute()) {
                     $stmt->close();
                     http_response_code(500);
-                    json_out(['success' => false, 'message' => 'Failed to update case category.']);
+                    json_out(['success' => false, 'message' => 'Failed to update violation.']);
                 }
                 $stmt->close();
 
                 json_out([
                     'success' => true,
-                    'message' => 'Case category updated successfully.',
+                    'message' => 'Violation updated successfully.',
                     'category' => [
                         'CaseId' => $caseId,
                         'SectionID' => $sectionId,
@@ -247,7 +252,7 @@ class GetCaseSectionController extends Controller
 
                 if ($caseId === '') {
                     http_response_code(400);
-                    json_out(['success' => false, 'message' => 'Case category is required.']);
+                    json_out(['success' => false, 'message' => 'Violation is required.']);
                 }
 
                 $existsCheck = $conn->prepare('SELECT CaseId FROM case_category WHERE CaseId = ?');
@@ -258,7 +263,7 @@ class GetCaseSectionController extends Controller
 
                 if (!$found) {
                     http_response_code(404);
-                    json_out(['success' => false, 'message' => 'Case category was not found.']);
+                    json_out(['success' => false, 'message' => 'Violation was not found.']);
                 }
 
                 // A category is "in use" once a real counseling case or follow-up
@@ -283,7 +288,7 @@ class GetCaseSectionController extends Controller
                     json_out([
                         'success' => false,
                         'blocked' => true,
-                        'message' => 'This case category cannot be deleted because it has existing case data.'
+                        'message' => 'This violation cannot be deleted because it has existing case data.'
                     ]);
                 }
 
@@ -293,13 +298,13 @@ class GetCaseSectionController extends Controller
                 if (!$stmt->execute()) {
                     $stmt->close();
                     http_response_code(500);
-                    json_out(['success' => false, 'message' => 'Failed to delete case category.']);
+                    json_out(['success' => false, 'message' => 'Failed to delete violation.']);
                 }
                 $stmt->close();
 
                 json_out([
                     'success' => true,
-                    'message' => 'Case category deleted successfully.',
+                    'message' => 'Violation deleted successfully.',
                     'caseId' => $caseId
                 ]);
             }
@@ -354,7 +359,9 @@ class GetCaseSectionController extends Controller
 
         /* ── SEARCH STUDENTS (same school as counselor) ── */
         elseif ($action === 'students') {
-            $counselorSchool = session('school_attended') ?? '';
+            // The logged-in account's current school (it follows a school
+            // switch). This used to read a session key nothing ever set.
+            $counselorSchool = api_school();
 
             if (empty($counselorSchool)) {
                 json_out(['success' => false, 'message' => 'No school found in session.']);

@@ -306,41 +306,82 @@
                             </div>
                         </div>
 
-                        <!-- Student Follow-up (Stage 6) -->
+                        <!-- Student Follow-up (Stage 6) — calendar, sessions and check-ins
+                             are driven by js/follow-up-scheduler.js. -->
                         <div id="followUpFormSection" style="display: none;">
                             <h3 class="text-primary">Student Follow-up (Stage 6)</h3>
-                            <p class="text-muted" style="margin-top:-6px;">Log a dated check-in with the student at the interval you set — each entry shows when the next one is due.</p>
+                            <p class="text-muted" style="margin-top:-6px;">Pick every day the student should come back. Each day shows how many students are already booked, so you can spread sessions out and keep the office from getting crowded.</p>
 
-                            <div id="followUpHistoryList" style="margin-bottom: 16px;"></div>
-
-                            <form id="followUpForm">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="followUpInterval">Follow-up Interval</label>
-                                        <select id="followUpInterval">
-                                            <option value="weekly">Weekly</option>
-                                            <option value="biweekly">Biweekly</option>
-                                            <option value="monthly">Monthly</option>
-                                            <option value="custom">Custom</option>
-                                        </select>
+                            <div class="fus-layout">
+                                <div class="appoint-calendar-col fus-calendar">
+                                    <div class="appoint-calendar-header">
+                                        <div class="appoint-calendar-title-group">
+                                            <span class="appoint-calendar-eyebrow">Pick follow-up days</span>
+                                            <span class="appoint-calendar-title"><i class="bi bi-calendar3"></i> <span id="fusCalendarMonth"></span></span>
+                                        </div>
+                                        <div class="appoint-calendar-nav">
+                                            <button type="button" class="appoint-calendar-nav-btn" id="fusPrevMonth" aria-label="Previous month"><i class="bi bi-chevron-left"></i></button>
+                                            <button type="button" class="appoint-calendar-nav-btn fus-today-btn" id="fusTodayBtn">Today</button>
+                                            <button type="button" class="appoint-calendar-nav-btn" id="fusNextMonth" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
+                                        </div>
                                     </div>
-                                    <div class="form-group" id="followUpCustomDaysGroup" style="display:none;">
-                                        <label for="followUpCustomDays">Custom Interval (days)</label>
-                                        <input type="number" id="followUpCustomDays" min="1" value="7">
+                                    <div class="appoint-mini-grid fus-grid" id="fusCalendarGrid"></div>
+                                    <div class="appoint-calendar-legend fus-legend">
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-light">2</span> 1&ndash;2 students</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-busy">3</span> 3&ndash;4 busy</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-full">5</span> 5+ crowded</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-dot"></span> Event</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-own"></span> This student's session</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-swatch"></span> Picked</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-ring"></span> Today</span>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="followUpDate">Follow-up Date</label>
-                                        <input type="date" id="followUpDate">
+                                    <div class="fus-agenda">
+                                        <div class="appoint-details-header">
+                                            <span class="appoint-section-label">On this day</span>
+                                            <div class="appoint-selected-date-chip" id="fusAgendaDate"></div>
+                                        </div>
+                                        <div id="fusAgendaList"></div>
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="followUpNotes">Notes — student's progress/well-being at this check-in</label>
-                                    <textarea id="followUpNotes" name="followUpNotes" placeholder="What was observed or discussed during this follow-up..."></textarea>
-                                </div>
+                                <div class="fus-side">
+                                    <div class="fus-panel">
+                                        <div class="appoint-details-header">
+                                            <span class="appoint-section-label">Sessions to schedule</span>
+                                            <span class="fus-count" id="fusSelectedCount"></span>
+                                        </div>
+                                        <div id="fusSelectedList"></div>
+                                        <div class="form-group" style="margin:12px 0 0;">
+                                            <label for="fusNote">Note for the student (optional)</label>
+                                            <input type="text" id="fusNote" placeholder="e.g. Bring your journal">
+                                        </div>
+                                        <button type="button" class="btn btn-primary fus-schedule-btn" id="fusScheduleBtn" disabled><i class="bi bi-calendar-plus"></i> Schedule session</button>
+                                    </div>
 
-                                <button type="submit" class="btn btn-success">Save Follow-up</button>
-                            </form>
+                                    <!-- Check-in log as a folder: each saved check-in is a file inside;
+                                         a new check-in is dated the day it is saved. -->
+                                    <div class="fus-folder is-open" id="fusCheckinFolder">
+                                        <button type="button" class="fus-folder-tab" id="fusFolderToggle" aria-expanded="true" aria-controls="fusFolderBody">
+                                            <i class="bi bi-folder2-open fus-folder-icon" aria-hidden="true"></i>
+                                            <span class="fus-folder-title">Check-in log</span>
+                                            <span class="fus-folder-count" id="fusCheckinCount">0</span>
+                                            <i class="bi bi-chevron-down fus-folder-chevron" aria-hidden="true"></i>
+                                        </button>
+                                        <div class="fus-folder-body" id="fusFolderBody">
+                                            <p class="fus-folder-summary" id="fusFolderSummary"></p>
+                                            <div id="followUpHistoryList" class="fus-files"></div>
+
+                                            <form id="followUpForm" class="fus-file fus-file-new">
+                                                <div class="form-group" style="margin:0;">
+                                                    <label for="followUpNotes"><i class="bi bi-file-earmark-plus"></i> Today's check-in — student's progress/well-being</label>
+                                                    <textarea id="followUpNotes" name="followUpNotes" rows="3" placeholder="What was observed or discussed during this follow-up..."></textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn-success"><i class="bi bi-save"></i> Save Check-in</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Case Closing Acknowledgement (Stage 7) -->
@@ -489,20 +530,83 @@
                 </div>
 
                 <div id="listView">
-                    <!-- Filter -->
-                    <div class="card" style="margin-bottom: 20px;">
-                        <div class="filter-bar" style="display: grid; grid-template-columns: auto auto auto auto 1fr; gap: 15px; align-items: end;">
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Stage</label>
-                                <select id="stageFilter" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
-                                    <option value="">All Stages</option>
-                                    <option value="3">Parent Call-up/Consent (3)</option>
-                                    <option value="4">Intervention (4)</option>
-                                    <option value="5">Counseling (5)</option>
+                    <!-- Filters: the list updates as soon as one changes. -->
+                    <div class="card referral-filters" style="margin-bottom: 20px;">
+                        <div class="referral-filters-grid">
+                            <div class="referral-filter referral-filter-search">
+                                <label for="rfSearch">Search</label>
+                                <input type="search" id="rfSearch" placeholder="Student, referral ID, reason, teacher or section" autocomplete="off">
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfStatus">Status</label>
+                                <select id="rfStatus">
+                                    <option value="">All statuses</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="in-progress">In progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="rejected">Rejected</option>
                                 </select>
                             </div>
-                            <button class="btn btn-primary" onclick="applyStageFilter()">Filter</button>
-                            <button class="btn btn-secondary" onclick="clearStageFilter()">Clear</button>
+                            <div class="referral-filter">
+                                <label for="rfStage">Stage</label>
+                                <select id="rfStage">
+                                    <option value="">All stages</option>
+                                    <option value="1">1 &middot; Interview/Background</option>
+                                    <option value="2">2 &middot; Initial Risk Assessment</option>
+                                    <option value="3">3 &middot; Parent Call-up/Consent</option>
+                                    <option value="4">4 &middot; Intervention</option>
+                                    <option value="5">5 &middot; Counseling</option>
+                                    <option value="6">6 &middot; Student Follow-up</option>
+                                    <option value="7">7 &middot; Case Closing</option>
+                                </select>
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfUrgency">Urgency</label>
+                                <select id="rfUrgency">
+                                    <option value="">All urgency levels</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                    <option value="normal">Normal</option>
+                                </select>
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfGrade">Grade</label>
+                                <select id="rfGrade">
+                                    <option value="">All grades</option>
+                                </select>
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfRole">Role in incident</label>
+                                <select id="rfRole">
+                                    <option value="">All</option>
+                                    <option value="offender">Offender</option>
+                                    <option value="victim">Victim</option>
+                                    <option value="none">Not tagged</option>
+                                </select>
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfFrom">Submitted from</label>
+                                <input type="date" id="rfFrom">
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfTo">Submitted to</label>
+                                <input type="date" id="rfTo">
+                            </div>
+                            <div class="referral-filter">
+                                <label for="rfSort">Sort by</label>
+                                <select id="rfSort">
+                                    <option value="newest">Newest first</option>
+                                    <option value="oldest">Oldest first</option>
+                                    <option value="urgency">Most urgent first</option>
+                                    <option value="stage">Stage (earliest first)</option>
+                                    <option value="name">Student name (A&ndash;Z)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="referral-filters-foot">
+                            <p class="referral-filters-count" id="rfCount" aria-live="polite"></p>
+                            <button type="button" class="btn btn-secondary btn-sm" id="rfClear"><i class="bi bi-x-circle"></i> Clear filters</button>
                         </div>
                     </div>
 
@@ -524,10 +628,11 @@
                             </thead>
                             <tbody id="referralsTableBody">
                                 <tr>
-                                    <td colspan="9" class="text-center p-5 text-muted">No referrals found</td>
+                                    <td colspan="9" class="text-center p-5 text-muted">Loading referrals&hellip;</td>
                                 </tr>
                             </tbody>
                         </table>
+                        <div class="accounts-pagination" id="rfPager" hidden></div>
                     </div>
                 </div>
             </div>
@@ -706,6 +811,7 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/follow-up-scheduler.js') }}?v={{ filemtime(public_path('js/follow-up-scheduler.js')) }}"></script>
     <script src="{{ asset('pages/counselor/referral-status.js') }}?v={{ filemtime(public_path('pages/counselor/referral-status.js')) }}"></script>
 </body>
 </html>

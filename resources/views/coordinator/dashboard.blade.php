@@ -29,6 +29,9 @@
 
             <!-- Page Content -->
             <div class="page-content">
+                <!-- School switcher: shown only to staff the SDO assigned to more than one school (initSchoolSwitcher(), js/utils.js). -->
+                <div id="schoolSwitcher" hidden></div>
+
                 <!-- Dashboard Grid -->
                 <div class="dashboard-grid">
                     <!-- Total Referrals -->

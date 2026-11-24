@@ -28,7 +28,6 @@
             <li><a href="#features">Features</a></li>
             <li><a href="#roles">Roles</a></li>
             <li><a href="#about">About</a></li>
-            <li><a href="{{ url('staff-login') }}">Staff Login</a></li>
             <li><a href="{{ url('login') }}">Log In</a></li>
             <li><a href="{{ url('register') }}" class="btn-nav">Register</a></li>
         </ul>

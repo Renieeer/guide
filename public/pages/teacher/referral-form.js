@@ -213,10 +213,21 @@ function createPersonCard() {
                 </select>
             </div>
             <div class="referral-person-body">
+                <!-- LRN is the main way to find the student: it's unique
+                     per learner, unlike names. Picking a match fills in
+                     the name, grade, gender and age below. -->
+                <div class="form-field referral-person-lrn-field">
+                    <label>Student LRN:</label>
+                    <input type="text" class="person-lrn" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="Type the student's 12-digit LRN">
+                    <div class="person-search-status"></div>
+                    <div class="person-suggestion-box">
+                        <div class="person-suggestion-list"></div>
+                    </div>
+                </div>
                 <div class="form-row-three referral-person-row-with-age">
                     <div class="form-field">
                         <label>Name of Student:</label>
-                        <input type="text" class="person-name" required>
+                        <input type="text" class="person-name" placeholder="Or search by name" required>
                         <input type="hidden" class="person-student-id">
                         <div class="person-search-status"></div>
                         <div class="person-suggestion-box">
@@ -432,15 +443,25 @@ function collectPeopleFromForm() {
     return people;
 }
 
-// Setup student name search with dropdown auto-suggestions (same UX as the
-// counselor's Case Scenario student search) — restricted to the teacher's
-// own school. Wired directly to this specific card's own input/status/list
-// elements (rather than global ids), so any number of person cards can each
-// have independent, working autocomplete.
+// Student lookup with dropdown auto-suggestions (same UX as the counselor's
+// Case Scenario student search) — restricted to the teacher's own school.
+// Each card has two ways in: its LRN field (the main one — an LRN is unique
+// per learner) and its name field. Both are wired to their own input/
+// status/list elements (rather than global ids), so any number of person
+// cards can each have independent, working autocomplete.
 function wirePersonNameSearch(card) {
-    const input = card.querySelector('.person-name');
-    const status = card.querySelector('.person-search-status');
-    const listEl = card.querySelector('.person-suggestion-list');
+    wireStudentSearch(card, card.querySelector('.person-lrn'), 'lrn');
+    wireStudentSearch(card, card.querySelector('.person-name'), 'name');
+}
+
+// Minimum characters before searching: an LRN prefix this short still
+// narrows a school's list well; a name needs at least 2 letters.
+const STUDENT_SEARCH_MIN_LENGTH = { lrn: 4, name: 2 };
+
+function wireStudentSearch(card, input, mode) {
+    const field = input.closest('.form-field');
+    const status = field.querySelector('.person-search-status');
+    const listEl = field.querySelector('.person-suggestion-list');
     let searchTimeout;
     let highlightedIndex = -1;
 
@@ -454,30 +475,38 @@ function wirePersonNameSearch(card) {
     // the one actually highlighted.
     function applySuggestion(row) {
         if (!row || !row._studentData) return;
-        const student = row._studentData;
-        input.value = student.fullName;
-        populateStudentFromSearch(card, student);
-        status.textContent = `Selected: ${student.fullName}`;
-        status.style.color = 'green';
-        hideSuggestions();
+        selectStudentForCard(card, row._studentData, status, listEl);
     }
 
     input.addEventListener('input', function() {
         clearTimeout(searchTimeout);
-        const searchTerm = this.value.trim();
         highlightedIndex = -1;
         status.textContent = '';
 
-        // Manual edits invalidate a previously selected student record
-        card.querySelector('.person-student-id').value = '';
+        if (mode === 'lrn') {
+            // LRNs are digits only; drop anything else as it's typed/pasted.
+            const digits = this.value.replace(/\D/g, '').slice(0, 12);
+            if (this.value !== digits) this.value = digits;
+        }
+        const searchTerm = this.value.trim();
 
-        if (searchTerm.length < 2) {
+        // Manual edits invalidate a previously selected student record. A
+        // hand-edited name no longer belongs to the LRN shown, so that's
+        // cleared too.
+        card.querySelector('.person-student-id').value = '';
+        if (mode === 'name') card.querySelector('.person-lrn').value = '';
+
+        if (searchTerm.length < STUDENT_SEARCH_MIN_LENGTH[mode]) {
             hideSuggestions();
+            if (mode === 'lrn' && searchTerm.length > 0) {
+                status.textContent = `Keep typing — at least ${STUDENT_SEARCH_MIN_LENGTH.lrn} digits.`;
+                status.style.color = '#666';
+            }
             return;
         }
 
         searchTimeout = setTimeout(() => {
-            searchStudentsForCard(card, searchTerm, input, status, listEl);
+            searchStudentsForCard(card, searchTerm, mode, status, listEl);
         }, 300);
     });
 
@@ -522,8 +551,19 @@ function updateSuggestionHighlight(items, idx) {
     });
 }
 
-// Search for students, restricted to the teacher's own school
-function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
+// Fills the card from the chosen student (name, LRN, grade, gender, age),
+// whichever field the search was made from.
+function selectStudentForCard(card, student, statusEl, listEl) {
+    populateStudentFromSearch(card, student);
+    const lrnNote = student.lrn ? ` (LRN ${student.lrn})` : '';
+    statusEl.textContent = `Selected: ${student.fullName}${lrnNote}`;
+    statusEl.style.color = 'green';
+    listEl.innerHTML = '';
+}
+
+// Search for students, restricted to the teacher's own school. mode 'lrn'
+// matches the start of the LRN; 'name' matches name/nickname/email.
+function searchStudentsForCard(card, searchTerm, mode, statusEl, listEl) {
     const user = getCurrentUser();
 
     let teacherSchool = user?.school_attended;
@@ -541,7 +581,8 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
     statusEl.textContent = 'Searching school records...';
     statusEl.style.color = '#666';
 
-    const apiUrl = `../../api/get-students?school=${encodeURIComponent(teacherSchool)}&search=${encodeURIComponent(searchTerm)}&limit=8`;
+    const searchParam = mode === 'lrn' ? 'lrn' : 'search';
+    const apiUrl = `../../api/get-students?school=${encodeURIComponent(teacherSchool)}&${searchParam}=${encodeURIComponent(searchTerm)}&limit=8`;
 
     fetch(apiUrl)
         .then(r => r.json())
@@ -558,10 +599,13 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
             if (result.data && result.data.length > 0) {
                 result.data.forEach(student => {
                     const fullName = `${student.first_name || ''} ${student.last_name || ''}`.trim();
-                    const gradeLabel = student.grade_name || '';
+                    // LRN first on the detail line, so two students with
+                    // the same name can be told apart at a glance.
+                    const detail = [student.lrn ? `LRN ${student.lrn}` : 'No LRN on file', student.grade_name || '']
+                        .filter(Boolean).join(' · ');
                     const row = document.createElement('div');
                     row.className = 'suggestion-item';
-                    row.innerHTML = `<div class="suggestion-item-name">${escapeHtml(fullName)}</div><div class="suggestion-item-grade">${escapeHtml(gradeLabel)}</div>`;
+                    row.innerHTML = `<div class="suggestion-item-name">${escapeHtml(fullName)}</div><div class="suggestion-item-grade">${escapeHtml(detail)}</div>`;
                     // Each row carries its own exact match data so keyboard
                     // selection (Enter/Tab on the highlighted row) and mouse
                     // selection always resolve to the same student — never
@@ -569,11 +613,7 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
                     row._studentData = Object.assign({}, student, { fullName });
                     row.addEventListener('mousedown', (ev) => {
                         ev.preventDefault();
-                        inputField.value = fullName;
-                        populateStudentFromSearch(card, row._studentData);
-                        statusEl.textContent = `Selected: ${fullName}`;
-                        statusEl.style.color = 'green';
-                        listEl.innerHTML = '';
+                        selectStudentForCard(card, row._studentData, statusEl, listEl);
                     });
                     listEl.appendChild(row);
                 });
@@ -581,7 +621,9 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
                 statusEl.textContent = `Found ${result.data.length} match${result.data.length > 1 ? 'es' : ''}`;
                 statusEl.style.color = 'green';
             } else {
-                statusEl.textContent = 'No matching student found in school records.';
+                statusEl.textContent = mode === 'lrn'
+                    ? "No student with that LRN in your school's records. Check the number, or search by name below."
+                    : 'No matching student found in school records.';
                 statusEl.style.color = '#d9534f';
                 listEl.innerHTML = '';
             }
@@ -599,8 +641,12 @@ function searchStudentsForCard(card, searchTerm, inputField, statusEl, listEl) {
 function populateStudentFromSearch(card, student) {
     const fullName = student.fullName || `${student.first_name || ''} ${student.last_name || ''}`.trim();
 
-    // Set name and ACCOUNT ID (not LRN)
+    // Set name and ACCOUNT ID (the LRN is shown for reference; the
+    // referral links to the student by id)
     card.querySelector('.person-name').value = fullName;
+
+    const lrnEl = card.querySelector('.person-lrn');
+    if (lrnEl) lrnEl.value = student.lrn || '';
 
     const studentIdField = card.querySelector('.person-student-id');
     if (studentIdField) {

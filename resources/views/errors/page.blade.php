@@ -10,8 +10,8 @@
 @php
     $code = (int) $code === 403 ? 403 : 404;
     $viewer = error_page_viewer();
-    // Teachers sign in on the staff portal; everyone else on the main one.
-    $loginUrl = url(request()->is('teacher', 'teacher/*') ? 'staff-login' : 'login');
+    // Every role signs in on the same page.
+    $loginUrl = url('login');
     $title = match (true) {
         $code === 404 => 'Page Not Found',
         $viewer === null => 'Log In Required',

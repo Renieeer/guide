@@ -276,20 +276,13 @@ function renderStageSection(referral, viewStage) {
         interventionSection.style.display = 'none';
     }
 
-    // Show the Student Follow-up log for stage 6 — a dated, repeatable
-    // check-in at whatever interval the counselor sets (weekly/biweekly/
-    // monthly/custom), unlike the one-shot forms on the other stages.
+    // Stage 6 — pick the days the student comes back on a calendar that
+    // shows every schedule already set, plus a dated check-in log. Shared
+    // with the other referral page: see js/follow-up-scheduler.js.
     const followUpSection = document.getElementById('followUpFormSection');
     if (viewStage === 6) {
         followUpSection.style.display = 'block';
-        const followUpDateEl = document.getElementById('followUpDate');
-        if (!followUpDateEl.value) {
-            followUpDateEl.value = localDateString();
-        }
-        document.getElementById('followUpInterval').onchange = updateFollowUpCustomDaysVisibility;
-        updateFollowUpCustomDaysVisibility();
-        document.getElementById('followUpForm').onsubmit = submitFollowUp;
-        loadFollowUpHistory(referral.id);
+        FollowUpScheduler.open(referral);
     } else {
         followUpSection.style.display = 'none';
     }
@@ -941,96 +934,6 @@ function submitIntervention(e) {
     })
     .catch(error => {
         showAlert(error.message || 'Failed to save intervention session.', 'error');
-    })
-    .finally(() => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-    });
-}
-
-const FOLLOW_UP_INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
-
-function updateFollowUpCustomDaysVisibility() {
-    const isCustom = document.getElementById('followUpInterval').value === 'custom';
-    document.getElementById('followUpCustomDaysGroup').style.display = isCustom ? '' : 'none';
-}
-
-function followUpIntervalDays() {
-    const label = document.getElementById('followUpInterval').value;
-    if (label === 'custom') {
-        return Math.max(1, parseInt(document.getElementById('followUpCustomDays').value, 10) || 1);
-    }
-    return FOLLOW_UP_INTERVAL_DAYS[label] || 7;
-}
-
-function loadFollowUpHistory(referralId) {
-    const container = document.getElementById('followUpHistoryList');
-    if (!container) return;
-    container.innerHTML = '<p class="text-muted">Loading follow-up history...</p>';
-
-    fetch(`../../api/referral-follow-up?referral_id=${referralId}`)
-        .then(response => response.json())
-        .then(result => {
-            if (!result.success) throw new Error(result.message || 'Failed to load follow-up history');
-            const rows = result.data || [];
-            if (rows.length === 0) {
-                container.innerHTML = '<p class="text-muted">No follow-up check-ins recorded yet.</p>';
-                return;
-            }
-
-            const intervalLabels = { weekly: 'Weekly', biweekly: 'Biweekly', monthly: 'Monthly', custom: 'Custom' };
-            container.innerHTML = rows.map(row => `
-                <div style="background:#f9fafb; border-radius:8px; padding:12px 14px; margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong>${formatDate(row.follow_up_date)}</strong>
-                        <small class="text-muted">${escapeHtml(intervalLabels[row.interval_label] || row.interval_label)} (${escapeHtml(row.interval_days)}d) — next due ${formatDate(row.next_follow_up_date)}</small>
-                    </div>
-                    ${row.notes ? `<div>${escapeHtml(row.notes)}</div>` : ''}
-                    <div style="margin-top:6px;"><small class="text-muted">Recorded by ${escapeHtml(row.counselor_name || 'Counselor')}</small></div>
-                </div>
-            `).join('');
-        })
-        .catch(error => {
-            container.innerHTML = `<p class="text-danger">${escapeHtml(error.message)}</p>`;
-        });
-}
-
-function submitFollowUp(e) {
-    e.preventDefault();
-
-    const user = getCurrentUser();
-    const intervalLabel = document.getElementById('followUpInterval').value;
-    const intervalDays = followUpIntervalDays();
-    const followUpDate = document.getElementById('followUpDate').value;
-    const notes = document.getElementById('followUpNotes').value.trim();
-
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
-
-    fetch('../../api/referral-follow-up', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            referral_id: currentReferral.id,
-            counselor_id: user?.id || '',
-            counselor_name: user?.name || '',
-            interval_label: intervalLabel,
-            interval_days: intervalDays,
-            follow_up_date: followUpDate,
-            notes: notes
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (!result.success) throw new Error(result.message || 'Failed to save follow-up');
-        showAlert('Follow-up saved.', 'success');
-        document.getElementById('followUpNotes').value = '';
-        loadFollowUpHistory(currentReferral.id);
-    })
-    .catch(error => {
-        showAlert(error.message || 'Failed to save follow-up.', 'error');
     })
     .finally(() => {
         submitBtn.disabled = false;
@@ -1728,7 +1631,8 @@ function closeCase() {
         const apiUrl = `../../api/update-referral`;
         const user = getCurrentUser();
 
-        fetch(apiUrl, {
+        // Returned so the confirm dialog shows it's processing until done.
+        return fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

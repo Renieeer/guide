@@ -407,10 +407,19 @@ function bindCaseEvents() {
     document.getElementById('draftSectionFilter')?.addEventListener('change', renderRecentCases);
     document.getElementById('draftCategoryFilter')?.addEventListener('change', renderRecentCases);
     document.getElementById('draftStatusFilter')?.addEventListener('change', renderRecentCases);
+    document.getElementById('draftStudentSearch')?.addEventListener('input', renderRecentCases);
+    document.getElementById('draftDateFilter')?.addEventListener('change', renderRecentCases);
+    document.getElementById('draftYearFilter')?.addEventListener('change', renderRecentCases);
     document.getElementById('clearDraftFiltersBtn')?.addEventListener('click', () => {
+        const studentSearch  = document.getElementById('draftStudentSearch');
         const sectionSelect  = document.getElementById('draftSectionFilter');
         const categorySelect = document.getElementById('draftCategoryFilter');
         const statusSelect   = document.getElementById('draftStatusFilter');
+        const dateInput      = document.getElementById('draftDateFilter');
+        const yearSelect     = document.getElementById('draftYearFilter');
+        if (studentSearch)  studentSearch.value  = '';
+        if (dateInput)      dateInput.value      = '';
+        if (yearSelect)     yearSelect.value     = '';
         if (sectionSelect)  sectionSelect.value  = '';
         if (categorySelect) categorySelect.value = '';
         if (statusSelect)   statusSelect.value   = '';
@@ -734,21 +743,70 @@ function getRecordCategoryNames(record) {
     return Array.from(names);
 }
 
-/* Applies the section/category/status filters and sorts newest-first (by
-   createdAt, falling back to the case id, which is time-ordered) for quick scanning. */
+/* When a case was saved, as a timestamp (0 if unknown). The database sends
+   "2026-11-05 09:15:00"; a case created on this page has an ISO string.
+   Safari can't parse the space-separated form, so it gets a "T" first. */
+function getDraftCreatedTime(record) {
+    const time = new Date(String(record.createdAt || '').replace(' ', 'T')).getTime();
+    return Number.isNaN(time) ? 0 : time;
+}
+
+function getDraftStudentQuery() {
+    return (document.getElementById('draftStudentSearch')?.value || '').trim().toLowerCase();
+}
+
+function getMatchingDraftStudents(record, query) {
+    return (record.students || []).filter(s => String(s.name || '').toLowerCase().includes(query));
+}
+
+/* Year filter options: every year a case on the list was saved in, newest
+   first, so it never offers a year with nothing in it. */
+function populateDraftYearFilter() {
+    const select = document.getElementById('draftYearFilter');
+    if (!select) return;
+
+    const previousValue = select.value;
+    const years = Array.from(new Set(
+        caseDrafts.map(getDraftCreatedTime).filter(Boolean).map(t => new Date(t).getFullYear())
+    )).sort((a, b) => b - a).map(String);
+
+    select.innerHTML = '<option value="">All years</option>' +
+        years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+    if (years.includes(previousValue)) {
+        select.value = previousValue;
+    }
+}
+
+/* Applies the student search and section/category/date/year/status
+   filters, and sorts newest-first (by createdAt, falling back to the case
+   id, which is time-ordered) for quick scanning. Date and Year go by the
+   same saved date shown under each case ID. */
 function getVisibleDrafts() {
+    const studentQuery   = getDraftStudentQuery();
     const sectionFilter  = document.getElementById('draftSectionFilter')?.value  || '';
     const categoryFilter = document.getElementById('draftCategoryFilter')?.value || '';
     const statusFilter   = document.getElementById('draftStatusFilter')?.value   || '';
+    const dateFilter     = document.getElementById('draftDateFilter')?.value     || '';
+    const yearFilter     = document.getElementById('draftYearFilter')?.value     || '';
 
     return caseDrafts
+        .filter(record => !studentQuery || getMatchingDraftStudents(record, studentQuery).length > 0)
+        .filter(record => {
+            if (!dateFilter && !yearFilter) return true;
+            const time = getDraftCreatedTime(record);
+            if (!time) return false;
+            if (dateFilter && localDateString(new Date(time)) !== dateFilter) return false;
+            if (yearFilter && String(new Date(time).getFullYear()) !== yearFilter) return false;
+            return true;
+        })
         .filter(record => !sectionFilter || String(record.sectionId) === sectionFilter)
         .filter(record => !categoryFilter || getRecordCategoryNames(record).includes(categoryFilter))
         .filter(record => !statusFilter || (statusFilter === 'closed' ? record.status === 'closed' : record.status !== 'closed'))
         .slice()
         .sort((a, b) => {
-            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const aTime = getDraftCreatedTime(a);
+            const bTime = getDraftCreatedTime(b);
             if (bTime !== aTime) return bTime - aTime;
             return String(b.id).localeCompare(String(a.id));
         });
@@ -758,6 +816,7 @@ function renderRecentCases() {
     const tbody = document.getElementById('recentCasesBody');
     populateDraftSectionFilter();
     populateDraftCategoryFilter();
+    populateDraftYearFilter();
 
     if (!caseDrafts.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No saved drafts yet.</td></tr>';
@@ -766,31 +825,48 @@ function renderRecentCases() {
 
     const visibleDrafts = getVisibleDrafts();
     if (!visibleDrafts.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No drafts match the selected filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No cases match the search or selected filters.</td></tr>';
         return;
     }
+
+    const studentQuery = getDraftStudentQuery();
 
     tbody.innerHTML = visibleDrafts.map(record => {
         const titleDisplay    = record.sectionName  || record.caseTitle || '—';
         const recordCategories = getRecordCategoryNames(record);
         const categoryDisplay  = recordCategories.length ? recordCategories.join(', ') : '—';
+        const createdTime      = getDraftCreatedTime(record);
+        const dateDisplay      = createdTime
+            ? new Date(createdTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '';
+        // While searching, name the student(s) that matched, since the
+        // column otherwise shows only a count.
+        const matchedNames = studentQuery
+            ? getMatchingDraftStudents(record, studentQuery).map(s => s.name).join(', ')
+            : '';
 
         return `
         <tr id="caseRow-${escapeHtml(record.id)}">
-            <td><strong>${escapeHtml(record.id)}</strong></td>
-            <td>${escapeHtml(titleDisplay)}</td>
-            <td>${escapeHtml(categoryDisplay)}</td>
-            <td>${(record.students || []).length}</td>
+            <td class="draft-col-id">
+                <strong>${escapeHtml(record.id)}</strong>
+                ${dateDisplay ? `<div class="draft-cell-sub">${escapeHtml(dateDisplay)}</div>` : ''}
+            </td>
+            <td><div class="draft-cell-truncate" title="${escapeHtml(titleDisplay)}">${escapeHtml(titleDisplay)}</div></td>
+            <td><div class="draft-cell-truncate" title="${escapeHtml(categoryDisplay)}">${escapeHtml(categoryDisplay)}</div></td>
+            <td>
+                ${(record.students || []).length}
+                ${matchedNames ? `<div class="draft-cell-sub draft-cell-truncate" title="${escapeHtml(matchedNames)}">${escapeHtml(matchedNames)}</div>` : ''}
+            </td>
             <td>
                 ${record.status === 'closed' ? '<span class="badge badge-completed">Ended</span>' : '<span class="badge badge-pending">Pending</span>'}
             </td>
-            <td style="display:flex;gap:8px;align-items:center;">
+            <td class="draft-col-actions"><div class="draft-actions">
                 <button type="button" class="btn btn-outline btn-sm" onclick="toggleStudentDrawer('${jsStr(record.id)}')">
                     <i class="bi bi-people"></i> View
                 </button>
                 ${record.status !== 'closed' ? `
                 <button type="button" class="btn btn-success btn-sm" onclick="openAppointModal('${jsStr(record.id)}')">
-                    <i class="bi bi-calendar-plus"></i> Add Counseling Session
+                    <i class="bi bi-calendar-plus"></i> Add Session
                 </button>
                 <button type="button" class="btn btn-warning btn-sm" onclick="openFollowUpModal('${jsStr(record.id)}')">
                     <i class="bi bi-chat-dots"></i> Add Student Follow-up
@@ -799,7 +875,7 @@ function renderRecentCases() {
                     <i class="bi bi-check-circle"></i> End case
                 </button>
                 ` : ''}
-            </td>
+            </div></td>
         </tr>
         <tr class="drawer-row ${openDrawerId === record.id ? '' : 'hidden'}" id="drawerRow-${escapeHtml(record.id)}">
             <td colspan="6">
@@ -1300,7 +1376,17 @@ function renderFollowUpNoteTile(record, s, autoExpand) {
     const last     = existing[existing.length - 1];
     const hasNote  = !!(last?.initialAction || '').trim();
     const categories = getCategoriesForRecord(record);
-    const lastCategoryId = last?.categoryId || '';
+    // Pre-selects the category this student already has, so it never has to
+    // be picked again: their latest follow-up that carries one (a "Counseling
+    // Session" logged by booking an appointment has none, so it's skipped),
+    // else the category set for them on the case, else the case's own.
+    const lastWithCategory = existing.slice().reverse().find(f => f.categoryId);
+    const lastCategoryId = String(
+        lastWithCategory?.categoryId
+        || record.counselingRecords?.[s.id]?.categoryId
+        || record.categoryId
+        || ''
+    );
 
     // Counts every follow-up already on record for this student in this
     // case, so it's clear at a glance whether this is their first session
@@ -1325,7 +1411,7 @@ function renderFollowUpNoteTile(record, s, autoExpand) {
             <select class="fu-form-select fu-note-category" data-student-id="${escapeHtml(s.id)}">
                 <option value="">Select category</option>
                 ${categories.map(c =>
-                    `<option value="${escapeHtml(c.CaseId)}" data-name="${escapeHtml(c.CategoryName)}" ${lastCategoryId === c.CaseId ? 'selected' : ''}>${escapeHtml(c.CategoryName)}</option>`
+                    `<option value="${escapeHtml(c.CaseId)}" data-name="${escapeHtml(c.CategoryName)}" ${lastCategoryId === String(c.CaseId) ? 'selected' : ''}>${escapeHtml(c.CategoryName)}</option>`
                 ).join('')}
             </select>
             <span class="fu-form-label fu-note-category-label">Comment — behavior or action taken</span>
@@ -1648,9 +1734,77 @@ function renderAppointCalendar() {
     renderAppointDayEvents();
 }
 
+// Each "Preferred time" option is a 30-minute slot. Same blocking rule as the
+// student booking page (getBlockedRangesForDate() in student/schedule.js):
+// an all-day event blocks the whole day, a timed event blocks its own
+// window, and a pending or approved appointment blocks its slot.
+const APPOINT_SLOT_MINUTES = 30;
+const APPOINT_SLOT_HOLDING_STATUSES = new Set(['pending', 'approved']);
+
+function appointTimeToMinutes(timeStr) {
+    const match = /^(\d{1,2}):(\d{2})/.exec(String(timeStr || '').trim());
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+// "13:30" -> "1:30 PM". Anything that isn't an HH:MM time is returned as-is.
+function appointFormatTime(timeStr) {
+    const minutes = appointTimeToMinutes(timeStr);
+    if (minutes === null) return String(timeStr || '');
+    const h = Math.floor(minutes / 60) % 24;
+    const m = minutes % 60;
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+// Who or what already holds the slot starting at timeStr on dateStr (a
+// student's name or an event title), or null when the slot is free.
+function appointSlotOccupant(dateStr, timeStr) {
+    const start = appointTimeToMinutes(timeStr);
+    if (!dateStr || start === null) return null;
+    const end = start + APPOINT_SLOT_MINUTES;
+    const { schedule, appts } = appointEventsForDate(dateStr);
+
+    for (const ev of schedule) {
+        if (ev.allDay) return ev.title || 'All-day event';
+        const evStart = appointTimeToMinutes(ev.time);
+        const evEnd   = appointTimeToMinutes(ev.endTime);
+        if (evStart !== null && evEnd !== null && start < evEnd && end > evStart) return ev.title || 'Event';
+    }
+    for (const a of appts) {
+        if (!APPOINT_SLOT_HOLDING_STATUSES.has(String(a.status || '').toLowerCase())) continue;
+        const aStart = appointTimeToMinutes(a.preferred_time);
+        if (aStart !== null && start < aStart + APPOINT_SLOT_MINUTES && end > aStart) return a.student_name || 'Another student';
+    }
+    return null;
+}
+
+// Greys out (disables) and flags every time already taken on the selected
+// date, and clears the chosen time if the new date has it taken.
+function updateAppointTimeOptions() {
+    const select = document.getElementById('appoint-time');
+    if (!select) return;
+    const previous = select.value;
+
+    Array.from(select.options).forEach(option => {
+        if (!option.value) return;
+        if (!option.dataset.label) option.dataset.label = option.textContent;
+        const occupant = appointSlotOccupant(appointSelectedDate, option.value);
+        option.disabled = Boolean(occupant);
+        option.textContent = occupant
+            ? `⚠ ${option.dataset.label} — Occupied (${occupant})`
+            : option.dataset.label;
+    });
+
+    if (previous && select.selectedOptions[0]?.disabled) {
+        select.value = '';
+        showAlert(`${appointFormatTime(previous)} is already taken on that day. Please pick another time.`, 'warning');
+    }
+}
+
 function renderAppointDayEvents() {
     const el        = document.getElementById('appointDayEvents');
     const dateLabel = document.getElementById('appointSelectedDateLabel');
+
+    updateAppointTimeOptions();
 
     if (dateLabel) {
         dateLabel.innerHTML = appointSelectedDate
@@ -1673,8 +1827,13 @@ function renderAppointDayEvents() {
     }
 
     const parts = [
-        ...schedule.map(ev => `${escapeHtml(ev.title || 'Event')} (${ev.allDay ? 'All day' : escapeHtml(ev.time || '')})`),
-        ...appts.map(a => `Appointment: ${escapeHtml(a.student_name || 'Student')} @ ${escapeHtml(a.preferred_time || '')}`)
+        ...schedule.map(ev => {
+            const when = ev.allDay
+                ? 'All day'
+                : appointFormatTime(ev.time) + (ev.endTime ? ` – ${appointFormatTime(ev.endTime)}` : '');
+            return `${escapeHtml(ev.title || 'Event')} (${escapeHtml(when)})`;
+        }),
+        ...appts.map(a => `Appointment: ${escapeHtml(a.student_name || 'Student')} at ${escapeHtml(appointFormatTime(a.preferred_time))}`)
     ];
     el.className = 'appoint-day-events is-busy-day';
     el.innerHTML = `<i class="bi bi-exclamation-circle"></i> Already booked: ${parts.join(', ')}`;
@@ -1855,6 +2014,11 @@ async function submitAppointments() {
     }
     if (!time || !reason) {
         showAlert('Please fill in the time and reason for the appointment.', 'warning');
+        return;
+    }
+    const occupant = appointSlotOccupant(date, time);
+    if (occupant) {
+        showAlert(`${appointFormatTime(time)} is already taken on that day (${occupant}). Please pick another time.`, 'warning');
         return;
     }
 

@@ -166,14 +166,38 @@ function buildCasesTable() {
 
     displayRows = buildDisplayRows();
 
+    // Sections start collapsed: the section row shows its per-grade counts
+    // and overall total, and clicking it shows its categories (shared
+    // helpers in js/utils.js). Exports still use every row of displayRows.
+    const layout = reportSectionLayout(displayRows);
+    wireReportSectionToggles(tbody);
+    const gradeCellsHtml = (totals) => visibleGrades.map(g => {
+        const cell = totals[g] || { m: 0, f: 0 };
+        const total = cell.m + cell.f;
+        return `<td class="text-center" style="font-size: 0.9em;">${escapeHtml(cell.m)}</td><td class="text-center" style="font-size: 0.9em;">${escapeHtml(cell.f)}</td><td class="text-center">${total > 0 ? `<span class="badge badge-in-progress">${escapeHtml(total)}</span>` : '0'}</td>`;
+    }).join('');
+
     displayRows.forEach((row, index) => {
         const tr = document.createElement('tr');
 
         if (row.type === 'header') {
-            const colCount = 1 + visibleGrades.length * 3;
-            tr.innerHTML = `<td colspan="${colCount}" style="font-weight: 700; background: #e2e8f0;">${escapeHtml(row.label)}</td>`;
+            const section = layout.sections.get(index);
+            const open = isReportSectionOpen(section.key);
+            tr.className = `report-section-row${open ? ' is-open' : ''}`;
+            tr.dataset.sectionToggle = String(index);
+            tr.dataset.sectionKey = section.key;
+            tr.innerHTML = reportSectionToggleCell(row.label, reportSectionGrandTotal(section.totals, visibleGrades), open) + gradeCellsHtml(section.totals);
             tbody.appendChild(tr);
             return;
+        }
+
+        // Already shown on the section row itself.
+        if (layout.sectionSubtotals.has(index)) return;
+
+        if (layout.rowSection.has(index)) {
+            const headerIndex = layout.rowSection.get(index);
+            tr.dataset.sectionOf = String(headerIndex);
+            tr.hidden = !isReportSectionOpen(layout.sections.get(headerIndex).key);
         }
 
         if (row.type === 'subtotal') {

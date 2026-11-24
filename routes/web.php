@@ -18,10 +18,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::view('/', 'home')->name('home');
+// One sign-in page for every role; the account's role decides the dashboard.
 Route::view('/login', 'auth.login')->name('login');
+// Student or teacher sign-up (role picked on the page; ?role=teacher
+// preselects teacher). Counselor/coordinator accounts are SDO-created.
 Route::view('/register', 'auth.register')->name('register');
-Route::view('/staff-login', 'auth.staff-login')->name('staff-login');
-Route::view('/staff-register', 'auth.staff-register')->name('staff-register');
+// Old teacher-only pages, kept so bookmarks and emailed links still land.
+Route::get('/staff-login', fn () => redirect()->route('login'))->name('staff-login');
+Route::get('/staff-register', fn () => redirect()->route('register', ['role' => 'teacher']))->name('staff-register');
 
 /*
 |--------------------------------------------------------------------------
@@ -39,8 +43,13 @@ $rolePages = [
     'counselor' => ['dashboard', 'counseling', 'referral-status', 'student-history', 'schedule', 'documents', 'analytics', 'report-case', 'feedback', 'student-feedback', 'profile'],
     'coordinator' => ['dashboard', 'referrals', 'account', 'schedule', 'documents', 'analytics', 'report-case', 'feedback', 'student-feedback', 'profile'],
     'other-school' => ['dashboard', 'counseling', 'referrals', 'student-history', 'account', 'schedule', 'documents', 'analytics', 'report-case', 'feedback', 'student-feedback', 'profile'],
-    'sdo' => ['dashboard', 'school-management', 'add-section', 'add-case-category', 'school-reports', 'district-analytics', 'district-report-cases', 'profile'],
+    'sdo' => ['dashboard', 'school-management', 'add-section', 'add-case-category', 'district-report-cases', 'profile'],
 ];
+
+// School Reports and District Analytics are now part of the SDO dashboard;
+// their old addresses still land there.
+Route::get('sdo/school-reports', fn () => redirect()->route('sdo.dashboard'))->name('sdo.school-reports');
+Route::get('sdo/district-analytics', fn () => redirect()->route('sdo.dashboard'))->name('sdo.district-analytics');
 
 foreach ($rolePages as $role => $pages) {
     Route::prefix($role)
@@ -81,6 +90,8 @@ Route::prefix('api')->name('api.')->middleware('legacy.errors')->group(function 
         Route::any('profile', Account\ProfileController::class)->name('profile');
         Route::any('avatar', Account\AvatarController::class)->name('avatar');
         Route::any('manage-accounts', Account\ManageAccountsController::class)->name('manage-accounts');
+        // A staff member's SDO-assigned schools, and switching between them.
+        Route::any('my-schools', Account\MySchoolsController::class)->name('my-schools');
 
         // Students
         Route::any('get-students', Students\GetStudentsController::class)->name('get-students');

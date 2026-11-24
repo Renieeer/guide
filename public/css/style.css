@@ -241,6 +241,136 @@ body.auth-page {
     font-size: 14px;
 }
 
+/* Fields for the role that isn't selected on the register page. Some
+   .form-group rules set display, which would beat the [hidden] default. */
+.auth-form [hidden] {
+    display: none !important;
+}
+
+.field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--ink-muted);
+}
+
+/* Register page: Student / Teacher picker (radio inputs styled as a
+   two-option segmented control). */
+.role-select {
+    border: 0;
+    padding: 0;
+    margin: 0 0 16px;
+    min-width: 0;
+}
+
+.role-select legend {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 14px;
+}
+
+.role-select-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.role-option {
+    position: relative;
+    cursor: pointer;
+}
+
+.role-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.role-option-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    color: var(--ink-muted);
+    font-size: 14px;
+    font-weight: 600;
+    transition: var(--transition-fast);
+}
+
+.role-option-body i {
+    font-size: 17px;
+}
+
+.role-option:hover .role-option-body {
+    border-color: var(--navy-200);
+    color: var(--secondary-color);
+}
+
+.role-option input:checked + .role-option-body {
+    border-color: var(--secondary-color);
+    background: var(--navy-050);
+    color: var(--secondary-color);
+    box-shadow: inset 0 0 0 1px var(--secondary-color);
+}
+
+.role-option input:focus-visible + .role-option-body {
+    outline: 2px solid var(--navy-500);
+    outline-offset: 2px;
+}
+
+/* Login page: "Register as Student / Teacher" buttons. */
+.register-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.register-choice-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--secondary-color);
+    border-radius: 8px;
+    color: var(--secondary-color);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.register-choice-btn i {
+    font-size: 17px;
+}
+
+.register-choice-btn:hover {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.register-choice-btn:focus-visible {
+    outline: 2px solid var(--navy-500);
+    outline-offset: 2px;
+}
+
+.register-choice-note {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
 .input-wrapper {
     position: relative;
     display: flex;
@@ -1776,6 +1906,102 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     min-width: 170px;
 }
 
+/* Counseling "Recent drafts" filters (not the District Analytics bar that
+   reuses this toolbar) sit on a grid: one row of Student, Section,
+   Category, Status and Clear filters, with Date and Year in a second row
+   under Section and Category (a 2x2 block). Fixed columns, so a long
+   category name can't push "Clear filters" out of place. */
+.recent-drafts-toolbar:not(.da-filterbar) {
+    display: grid;
+    grid-template-columns:
+        auto
+        minmax(150px, 1.2fr)
+        minmax(150px, 1.4fr)
+        minmax(150px, 2fr)
+        minmax(140px, 1fr)
+        auto;
+    align-items: end;
+    gap: 12px 18px;
+}
+
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group {
+    min-width: 0;
+}
+
+.recent-drafts-toolbar:not(.da-filterbar) .toolbar-label         { grid-column: 1; grid-row: 1; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-search   { grid-column: 2; grid-row: 1; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-section  { grid-column: 3; grid-row: 1; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-category { grid-column: 4; grid-row: 1; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-date     { grid-column: 3; grid-row: 2; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-year     { grid-column: 4; grid-row: 2; }
+.recent-drafts-toolbar:not(.da-filterbar) .filter-group-status   { grid-column: 5; grid-row: 1; }
+.recent-drafts-toolbar:not(.da-filterbar) .btn-clear-filters     { grid-column: 6; grid-row: 1; }
+
+.recent-drafts-toolbar:not(.da-filterbar) select,
+.recent-drafts-toolbar:not(.da-filterbar) input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    box-sizing: border-box;
+    text-overflow: ellipsis;
+}
+
+/* Date picker — same look as the filter selects beside it. */
+.recent-drafts-toolbar input[type="date"] {
+    padding: 9px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--primary-color);
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.recent-drafts-toolbar input[type="date"]:hover {
+    border-color: var(--secondary-color);
+}
+
+.recent-drafts-toolbar input[type="date"]:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(18, 58, 107, 0.12);
+}
+
+/* Narrower screens: two columns, filters in reading order. */
+@media (max-width: 1100px) {
+    .recent-drafts-toolbar:not(.da-filterbar) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .recent-drafts-toolbar:not(.da-filterbar) > * {
+        grid-column: auto;
+        grid-row: auto;
+    }
+    .recent-drafts-toolbar:not(.da-filterbar) .toolbar-label,
+    .recent-drafts-toolbar:not(.da-filterbar) .btn-clear-filters {
+        grid-column: 1 / -1;
+    }
+    .recent-drafts-toolbar:not(.da-filterbar) .btn-clear-filters {
+        justify-self: end;
+    }
+}
+
+/* Phones: one column. */
+@media (max-width: 700px) {
+    .recent-drafts-toolbar:not(.da-filterbar) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .recent-drafts-toolbar:not(.da-filterbar) .btn-clear-filters {
+        justify-self: stretch;
+    }
+}
+
+.recent-drafts-toolbar .toolbar-label {
+    flex-shrink: 0;
+}
+
 .recent-drafts-toolbar label {
     font-size: 11px;
     font-weight: 700;
@@ -1806,10 +2032,66 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     box-shadow: 0 0 0 3px rgba(18, 58, 107, 0.12);
 }
 
+/* Student name search — same look and height as the filter selects. */
+.draft-search-wrap {
+    position: relative;
+}
+
+.draft-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.draft-search-wrap input {
+    width: 100%;
+    height: 40px;
+    box-sizing: border-box;
+    padding: 9px 12px 9px 34px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.draft-search-wrap input::placeholder {
+    font-weight: 500;
+    color: var(--text-light);
+}
+
+.draft-search-wrap input:hover {
+    border-color: var(--secondary-color);
+}
+
+.draft-search-wrap input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(18, 58, 107, 0.12);
+}
+
+/* Small grey line under a Recent drafts cell (case date, matched student). */
+.draft-cell-sub {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+}
+
 .btn-clear-filters {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: 40px;
+    box-sizing: border-box;
     margin-left: auto;
     padding: 9px 14px;
     border: 1px solid var(--border-color);
@@ -1836,7 +2118,9 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     .recent-drafts-toolbar .toolbar-label {
         padding-bottom: 0;
     }
-    .recent-drafts-toolbar .filter-group {
+    .recent-drafts-toolbar .filter-group,
+    .recent-drafts-toolbar .filter-group-search {
+        flex: none;
         min-width: 0;
     }
     .btn-clear-filters {
@@ -2031,6 +2315,28 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 .recent-table td {
     color: #0b1f3a;
     font-size: 14px;
+    vertical-align: middle;
+}
+
+/* Recent drafts rows stay tidy: the case ID never breaks at its hyphen and
+   long section/category text ends in "…" (full text on hover, via the
+   cell's title). The buttons stay in one row, as they always have. */
+.recent-table .draft-col-id,
+.recent-table .draft-col-id strong {
+    white-space: nowrap;
+}
+
+.recent-table .draft-cell-truncate {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-table .draft-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .empty-state {
@@ -2467,12 +2773,15 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 320px;
+    max-height: min(60vh, 560px);
     overflow-y: auto;
     padding-right: 4px;
 }
 
+/* flex-shrink: 0 so a long list scrolls instead of squashing each student
+   card (and cutting off the comment box of the open one) to fit. */
 .fu-note-tile {
+    flex-shrink: 0;
     border: 1px solid #d8e0ea;
     border-radius: 10px;
     background: #fff;
@@ -2539,7 +2848,7 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 }
 
 .fu-note-tile.expanded .fu-note-tile-body {
-    max-height: 260px;
+    max-height: 640px;
 }
 
 .fu-note-tile-body .fu-note-category-label {
@@ -2556,7 +2865,9 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 .fu-note-tile-body .fu-note-textarea {
     display: block;
     width: calc(100% - 24px);
-    margin: 0 12px 12px;
+    min-height: 130px;
+    max-height: 400px;
+    margin: 0 12px 14px;
     background: #f5f7fa;
 }
 
@@ -2931,6 +3242,34 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
     color: #a15c00;
 }
 
+/* Button spinner, e.g. on the confirm dialog's "Yes" while the confirmed
+   action is still processing (confirmAction() in js/utils.js). */
+.btn-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    vertical-align: -2px;
+    animation: btnSpinnerSpin 0.7s linear infinite;
+}
+
+.btn[aria-busy="true"] {
+    cursor: progress;
+}
+
+@keyframes btnSpinnerSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Taken time slots in the Appoint Students "Preferred time" dropdown. */
+#appoint-time option:disabled {
+    color: #9ca3af;
+    background: #f3f4f6;
+}
+
 .appoint-bottom-row {
     padding: 18px 26px 22px;
     display: flex;
@@ -2975,6 +3314,625 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 .appoint-selected-date-chip .placeholder {
     color: #8494a7;
     font-weight: 500;
+}
+
+/* ── STAGE 6 FOLLOW-UP SCHEDULER (js/follow-up-scheduler.js) ──
+   Builds on the Appoint Students calendar above (.appoint-*): each day shows
+   how many students are already booked (green 1-2, amber 3-4, red 5+), with
+   side panels for what's set on the clicked day and the sessions picked. */
+.fus-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+    margin: 8px 0 24px;
+}
+
+/* "On this day" sits under the calendar, like the Appoint Students modal. */
+.fus-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e7edf4;
+}
+
+.fus-calendar {
+    padding: 20px 22px;
+}
+
+.fus-today-btn {
+    width: auto;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.fus-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.fus-day {
+    aspect-ratio: auto;
+    min-height: 64px;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 5px 0 4px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    font: inherit;
+}
+
+.fus-day .appoint-day-num {
+    width: 38px;
+    height: 38px;
+    font-size: 15px;
+}
+
+.fus-day:focus-visible {
+    outline: 2px solid #1a4c88;
+    outline-offset: 1px;
+}
+
+.fus-day.is-focused {
+    background: #f2f6fb;
+}
+
+.fus-load,
+.fus-legend-load {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 16px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.fus-load:empty {
+    visibility: hidden;
+}
+
+.fus-day.load-light .fus-load,
+.fus-legend-load.load-light {
+    background: #e6f4ee;
+    color: #1b7f5a;
+}
+
+.fus-day.load-busy .fus-load,
+.fus-legend-load.load-busy {
+    background: #fcf1e2;
+    color: #a15c00;
+}
+
+.fus-day.load-full .fus-load,
+.fus-legend-load.load-full {
+    background: #fbe9e7;
+    color: #b3261e;
+}
+
+.fus-day.is-disabled .fus-load {
+    opacity: 0.55;
+}
+
+/* A school event on the day (red when it's all-day and blocks booking). */
+.fus-day.has-events::after,
+.fus-day.is-blocked::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #a15c00;
+}
+
+.fus-day.is-blocked::after {
+    background: #b3261e;
+}
+
+/* A follow-up session already booked for this referral's student. */
+.fus-day.has-own .appoint-day-num {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #1b7f5a;
+}
+
+.fus-day.has-own.is-selected .appoint-day-num {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #1b7f5a, 0 4px 10px rgba(26, 76, 136, 0.35);
+}
+
+.fus-legend {
+    gap: 10px 16px;
+    margin-top: 14px;
+    padding-top: 12px;
+    font-size: 12px;
+}
+
+.fus-legend-own {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #1b7f5a;
+    display: inline-block;
+}
+
+.fus-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.fus-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.06);
+}
+
+.fus-agenda .appoint-day-events {
+    margin-top: 0;
+}
+
+.fus-count {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1a4c88;
+}
+
+.fus-empty {
+    margin: 0;
+    font-size: 13px;
+    color: #5a6b80;
+}
+
+.fus-agenda-note {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: #5a6b80;
+}
+
+.fus-agenda-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.fus-agenda-summary.is-light { background: #e6f4ee; color: #1b7f5a; }
+.fus-agenda-summary.is-busy { background: #fcf1e2; color: #a15c00; }
+.fus-agenda-summary.is-full { background: #fbe9e7; color: #b3261e; }
+
+.fus-agenda-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fus-agenda-item {
+    display: grid;
+    grid-template-columns: 18px 76px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f5f7fa;
+    font-size: 13px;
+    color: #16233a;
+}
+
+.fus-agenda-item i {
+    margin-top: 1px;
+    color: #5a6b80;
+}
+
+.fus-agenda-item.is-event i { color: #a15c00; }
+.fus-agenda-item.is-own { background: #e6f4ee; }
+.fus-agenda-item.is-own i { color: #1b7f5a; }
+
+.fus-agenda-time {
+    font-weight: 700;
+    color: #123a6b;
+    white-space: nowrap;
+}
+
+.fus-agenda-what small {
+    display: block;
+    font-size: 12px;
+    color: #5a6b80;
+}
+
+.fus-own-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #1b7f5a;
+    color: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
+    vertical-align: 1px;
+}
+
+#fusSelectedList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.fus-selected-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 34px;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e7edf4;
+    border-radius: 10px;
+}
+
+.fus-selected-date {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.fus-selected-date strong {
+    font-size: 13.5px;
+    color: #0b1f3a;
+}
+
+.fus-selected-date small {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fus-selected-date small.is-light { color: #1b7f5a; }
+.fus-selected-date small.is-busy { color: #a15c00; }
+.fus-selected-date small.is-full { color: #b3261e; }
+
+.fus-time {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    color: #16233a;
+}
+
+.fus-time:focus {
+    outline: none;
+    border-color: #1a4c88;
+    box-shadow: 0 0 0 3px rgba(26, 76, 136, 0.15);
+}
+
+.fus-time option:disabled {
+    color: #9ca3af;
+    background: #f3f4f6;
+}
+
+.fus-remove {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #e7edf4;
+    border-radius: 8px;
+    color: #b3261e;
+    cursor: pointer;
+}
+
+.fus-remove:hover {
+    background: #fbe9e7;
+    border-color: #f3c7c2;
+}
+
+.fus-schedule-btn {
+    align-self: flex-start;
+}
+
+/* Check-in log as a folder: a tab on top (click to open/close), the folder
+   body below, and each saved check-in a "file" card with a folded corner.
+   The new-entry form is the dashed "new file" at the end. */
+.fus-folder {
+    --fus-folder-bg: #e8eff7;
+    --fus-folder-line: #c9d7e8;
+}
+
+.fus-folder-tab {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: -1px;
+    padding: 10px 18px 10px 16px;
+    background: var(--fus-folder-bg);
+    border: 1px solid var(--fus-folder-line);
+    border-bottom-color: var(--fus-folder-bg);
+    border-radius: 12px 12px 0 0;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0b1f3a;
+    cursor: pointer;
+}
+
+.fus-folder-tab:focus-visible {
+    outline: 2px solid #1a4c88;
+    outline-offset: 2px;
+}
+
+.fus-folder:not(.is-open) .fus-folder-tab {
+    border-bottom-color: var(--fus-folder-line);
+}
+
+.fus-folder-icon {
+    font-size: 19px;
+    color: #1a4c88;
+}
+
+.fus-folder-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #1a4c88;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.fus-folder-chevron {
+    font-size: 13px;
+    color: #5a6b80;
+    transition: transform 0.2s ease;
+}
+
+.fus-folder:not(.is-open) .fus-folder-chevron {
+    transform: rotate(-90deg);
+}
+
+.fus-folder-body {
+    padding: 16px;
+    background: var(--fus-folder-bg);
+    border: 1px solid var(--fus-folder-line);
+    border-radius: 0 12px 12px 12px;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.06);
+}
+
+.fus-folder-summary {
+    display: none;
+    margin: 0;
+    font-size: 13px;
+    color: #5a6b80;
+}
+
+.fus-folder:not(.is-open) .fus-folder-summary {
+    display: block;
+}
+
+.fus-folder:not(.is-open) .fus-files,
+.fus-folder:not(.is-open) .fus-file-new {
+    display: none;
+}
+
+/* Newest check-in first; past 3 files the list scrolls (its height is set
+   to the first 3 files by fitFileList() in js/follow-up-scheduler.js). */
+.fus-files {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fus-files.is-scrollable {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    padding: 2px 4px 2px 2px;
+    margin: -2px -10px -2px -2px;
+}
+
+.fus-files-more {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #5a6b80;
+}
+
+.fus-files-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fus-file {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.06);
+}
+
+/* Folded top-right corner, like a sheet of paper. */
+.fus-file::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(225deg, var(--fus-folder-bg) 50%, #d8e0ea 50%);
+    border-radius: 0 10px 0 6px;
+}
+
+.fus-file-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 14px;
+}
+
+.fus-file-icon {
+    font-size: 22px;
+    color: #1a4c88;
+}
+
+.fus-file-title {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.fus-file-title strong {
+    font-size: 14.5px;
+    color: #0b1f3a;
+}
+
+.fus-file-title small {
+    font-size: 12px;
+    color: #5a6b80;
+}
+
+.fus-file-note {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #16233a;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.fus-file-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px dashed #d8e0ea;
+    font-size: 12px;
+    color: #5a6b80;
+}
+
+.fus-file-next {
+    color: #1b7f5a;
+    font-weight: 600;
+}
+
+.fus-file-new {
+    margin-top: 14px;
+    background: #f8fafc;
+    border-style: dashed;
+    border-color: #b8c8dc;
+    box-shadow: none;
+}
+
+.fus-file-new::after {
+    display: none;
+}
+
+.fus-file-new label i {
+    color: #1a4c88;
+}
+
+.fus-file-new .btn {
+    align-self: flex-start;
+}
+
+@media (max-width: 1100px) {
+    .fus-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 560px) {
+    .fus-calendar {
+        padding: 14px 10px;
+    }
+
+    .fus-calendar .appoint-calendar-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .fus-grid {
+        gap: 2px;
+    }
+
+    .fus-day {
+        min-height: 56px;
+    }
+
+    .fus-day .appoint-day-num {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .fus-panel {
+        padding: 14px 12px;
+    }
+
+    .fus-selected-row {
+        grid-template-columns: minmax(0, 1fr) 34px;
+    }
+
+    .fus-selected-row .fus-time {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .fus-agenda-item {
+        grid-template-columns: 18px minmax(0, 1fr);
+    }
+
+    .fus-agenda-what {
+        grid-column: 2;
+    }
+
+    .fus-folder-body {
+        padding: 12px;
+    }
 }
 
 @media (max-width: 1100px) {
@@ -3199,6 +4157,45 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 
 .schedule-calendar-day.is-outside .schedule-day-number {
     color: #d8e0ea;
+}
+
+/* Padding days from the neighbouring months (counselor schedule): a quiet,
+   recessed placeholder rather than a bookable day. Their appointments show
+   when that month is opened. */
+.schedule-calendar-day.is-filler {
+    background: transparent;
+    border: 1px dashed #dbe3ec;
+    box-shadow: none;
+    cursor: default;
+}
+
+.schedule-calendar-day.is-filler:hover {
+    background: transparent;
+    border-color: #dbe3ec;
+    box-shadow: none;
+    transform: none;
+}
+
+.schedule-calendar-day.is-filler .schedule-day-number {
+    background: transparent;
+    color: #b4c0cf;
+}
+
+/* "Dec 1" / "Nov 29": first padding day of a run, marking the month edge */
+.schedule-calendar-day .schedule-day-number.has-month {
+    width: auto;
+    max-width: 100%;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #8494a7;
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .schedule-calendar-day .schedule-day-number.has-month {
+        padding: 0 5px;
+    }
 }
 
 .schedule-calendar-day.is-today {
@@ -3582,6 +4579,340 @@ input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
 
 .schedule-create-modal .btn-success:hover {
     box-shadow: 0 12px 24px rgba(27, 127, 90, 0.22);
+}
+
+/* ── Day agenda ──
+   The Create Schedule modal lists what is already booked on the clicked
+   day in a left panel, so free times are visible before adding a schedule.
+   Past days and weekends show the panel alone (.is-view-only). Category
+   colors match the calendar legend chips above. */
+.modal-content.schedule-day-modal {
+    max-width: 1040px;
+    width: min(94vw, 1040px);
+}
+
+.modal-content.schedule-day-modal.is-view-only {
+    max-width: 480px;
+}
+
+.schedule-day-layout {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.schedule-day-layout > .modal-body {
+    min-width: 0;
+    min-height: 0;
+}
+
+.schedule-day-agenda {
+    flex: 0 0 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 22px 20px;
+    background: #f5f7fa;
+    border-right: 1px solid #e7edf4;
+    line-height: 1.4;
+}
+
+.schedule-day-modal.is-view-only .schedule-day-layout > .modal-body {
+    display: none;
+}
+
+.schedule-day-modal.is-view-only .schedule-day-agenda {
+    flex: 1 1 auto;
+    border-right: 0;
+}
+
+.schedule-day-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* Tear-off calendar tile for the selected date */
+.schedule-day-badge {
+    flex: 0 0 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid #d8e0ea;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(11, 31, 58, 0.08);
+}
+
+.schedule-day-badge-month {
+    width: 100%;
+    padding: 3px 0;
+    background: var(--secondary-color);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.schedule-day-badge-num {
+    padding: 4px 0 6px;
+    color: #0f2a4f;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.schedule-day-heading {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.schedule-day-weekday {
+    color: #0f2a4f;
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.schedule-day-fulldate {
+    color: #5a6b80;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.schedule-day-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.schedule-day-counts:empty {
+    display: none;
+}
+
+.schedule-day-section .schedule-modal-section-label {
+    margin-bottom: 10px;
+}
+
+.schedule-day-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.schedule-day-item {
+    --day-accent: #1d5aa8;
+    --day-ink: #1d5aa8;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px 10px 8px;
+    border: 1px solid #e7edf4;
+    border-left: 4px solid var(--day-accent);
+    border-radius: 10px;
+    background: #ffffff;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.schedule-day-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(11, 31, 58, 0.1);
+}
+
+.schedule-day-item:focus-visible {
+    outline: 2px solid #1d5aa8;
+    outline-offset: 2px;
+}
+
+.schedule-day-item.cat-online {
+    --day-accent: #1d5aa8;
+    --day-ink: #1d5aa8;
+}
+
+.schedule-day-item.cat-counseling {
+    --day-accent: #1b7f5a;
+    --day-ink: #1b7f5a;
+}
+
+.schedule-day-item.cat-event {
+    --day-accent: #e0962f;
+    --day-ink: #a15c00;
+}
+
+.schedule-day-time {
+    flex: 0 0 46px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #0f2a4f;
+    line-height: 1.15;
+}
+
+.schedule-day-time strong {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.schedule-day-time small {
+    color: #5a6b80;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.schedule-day-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.schedule-day-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.schedule-day-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: #16233a;
+    font-size: 14px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.schedule-day-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--day-ink);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.schedule-day-detail {
+    display: -webkit-box;
+    overflow: hidden;
+    color: #5a6b80;
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.schedule-day-status {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.schedule-day-status.is-approved {
+    background: #e6f4ee;
+    color: #1b7f5a;
+}
+
+.schedule-day-status.is-pending {
+    background: #fcf1e2;
+    color: #a15c00;
+}
+
+.schedule-day-status.is-proposed {
+    background: #e8eff7;
+    color: #1d5aa8;
+}
+
+.schedule-day-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 26px 16px;
+    border: 1px dashed #c9d5e3;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    color: #5a6b80;
+    font-size: 12.5px;
+    text-align: center;
+}
+
+.schedule-day-empty i {
+    margin-bottom: 4px;
+    color: #1b7f5a;
+    font-size: 26px;
+}
+
+.schedule-day-empty strong {
+    color: #0f2a4f;
+    font-size: 14px;
+}
+
+.schedule-day-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #e8eff7;
+    color: #0f2a4f;
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+.schedule-day-notice[hidden] {
+    display: none;
+}
+
+/* Narrow screens: the day list sits above the form and the whole modal
+   scrolls as one, with the list capped so the form stays reachable. */
+@media (max-width: 860px) {
+    .schedule-day-layout {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .schedule-day-agenda {
+        flex: none;
+        overflow: visible;
+        border-right: 0;
+        border-bottom: 1px solid #e7edf4;
+    }
+
+    .schedule-day-layout > .modal-body {
+        flex: none;
+        overflow: visible;
+    }
+
+    .schedule-day-modal:not(.is-view-only) .schedule-day-list {
+        max-height: 240px;
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .modal-content.schedule-day-modal {
+        width: calc(100% - 1rem);
+    }
 }
 
 .schedule-calendar-day {
@@ -5283,6 +6614,103 @@ tr:hover {
 #reportCasesTable tbody tr.row-clickable,
 #filterResultsTable tbody tr.row-clickable {
     cursor: pointer;
+}
+
+/* Report Case tables: collapsible sections (see the REPORT CASE helpers in
+   js/utils.js). A section row carries the section's per-grade counts and
+   overall total; its category rows show only while it's open. */
+#reportCasesTable tbody tr[hidden] {
+    display: none !important;
+}
+
+#reportCasesTable tbody tr.report-section-row td {
+    background: #e2e8f0;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#reportCasesTable tbody tr.report-section-row:hover td {
+    background: #d7e1ee;
+}
+
+#reportCasesTable tbody tr.report-section-row.is-open td {
+    border-bottom: 2px solid var(--navy-200);
+}
+
+.report-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.report-section-toggle:focus-visible {
+    outline: 2px solid var(--navy-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.report-section-chevron {
+    flex-shrink: 0;
+    color: var(--navy-600);
+    transition: transform 0.2s ease;
+}
+
+tr.report-section-row.is-open .report-section-chevron {
+    transform: rotate(90deg);
+}
+
+.report-section-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-section-total {
+    flex-shrink: 0;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--navy-200);
+    color: var(--navy-700);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.report-section-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.report-section-hint {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.report-section-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .report-section-chevron { transition: none; }
 }
 
 #reportCasesTable tbody tr.row-clickable:hover,
@@ -7465,6 +8893,433 @@ footer {
     padding: 16px 12px;
 }
 
+/* ---------- Multi-school staff ---------- */
+
+/* Staff dashboards: which school you're working in + switch (js/utils.js
+   initSchoolSwitcher). Only rendered for accounts with 2+ schools. */
+.school-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 24px;
+    margin-bottom: 24px;
+    padding: 18px 22px;
+    background: #fff;
+    border: 1px solid var(--navy-200);
+    border-left: 4px solid var(--navy-600);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(11, 31, 58, 0.06);
+}
+
+.school-switcher-current {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.school-switcher-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--navy-050);
+    color: var(--navy-700);
+    font-size: 20px;
+}
+
+.school-switcher-text {
+    min-width: 0;
+}
+
+.school-switcher-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.school-switcher-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--navy-900);
+    line-height: 1.25;
+}
+
+.school-switcher-sub {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+}
+
+.school-switcher-role {
+    font-weight: 700;
+    color: var(--navy-700);
+}
+
+.school-switcher-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 0 1 420px;
+    min-width: 0;
+}
+
+.school-switcher-form label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.school-switcher-row {
+    display: flex;
+    gap: 8px;
+}
+
+.school-switcher-row select {
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+}
+
+.school-switcher-row select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(29, 90, 168, 0.15);
+}
+
+.school-switcher-note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--ink-muted);
+}
+
+/* SDO School Access Setup: "New account" / "Existing account" per role card. */
+.account-source {
+    margin-bottom: 14px;
+}
+
+.account-source-toggle {
+    display: inline-flex;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    margin-bottom: 12px;
+}
+
+.account-source-option {
+    position: relative;
+    cursor: pointer;
+    margin: 0;
+}
+
+.account-source-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.account-source-option span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-muted);
+}
+
+.account-source-option + .account-source-option span {
+    border-left: 1px solid var(--border-color);
+}
+
+.account-source-option input:checked + span {
+    background: var(--navy-700);
+    color: #fff;
+}
+
+.account-source-option input:focus-visible + span {
+    outline: 2px solid var(--navy-500);
+    outline-offset: -2px;
+}
+
+.existing-account-picker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.existing-account-picker > label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.existing-account-search {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 14px;
+}
+
+.existing-account-picker.has-selection > label,
+.existing-account-picker.has-selection .existing-account-search,
+.existing-account-picker.has-selection .existing-account-results {
+    display: none;
+}
+
+.existing-account-results {
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(11, 31, 58, 0.12);
+}
+
+.existing-account-results.is-open {
+    display: block;
+}
+
+.existing-account-option {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+}
+
+.existing-account-option:last-child {
+    border-bottom: 0;
+}
+
+.existing-account-option:hover {
+    background: var(--navy-050);
+}
+
+.existing-account-option.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.existing-account-option.is-disabled:hover {
+    background: transparent;
+}
+
+.existing-account-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.existing-account-meta {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+.existing-account-flag {
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--border-soft);
+    color: var(--ink-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.existing-account-empty {
+    padding: 12px;
+    font-size: 13px;
+    color: var(--ink-muted);
+}
+
+.existing-account-selected {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--navy-200);
+    border-radius: 10px;
+    background: var(--navy-050);
+}
+
+.existing-account-selected[hidden] {
+    display: none;
+}
+
+.existing-account-selected-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.existing-account-avatar {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--navy-700);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.existing-account-hint {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--ink-muted);
+}
+
+/* SDO school details: where a multi-school person works. */
+.staff-schools {
+    margin: 6px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.staff-school-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-muted);
+}
+
+.staff-school-status.is-here {
+    color: var(--ok);
+    font-weight: 600;
+}
+
+.staff-school-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.staff-school-chips-label {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-right: 2px;
+}
+
+.staff-school-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--navy-200);
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy-700);
+}
+
+.staff-school-chip-role {
+    font-weight: 500;
+    color: var(--ink-muted);
+}
+
+@media (max-width: 560px) {
+    .school-switcher-row { flex-direction: column; }
+    .account-source-toggle { display: flex; }
+    .account-source-option { flex: 1; }
+    .account-source-option span { justify-content: center; width: 100%; }
+}
+
+/* Referral list filters (counselor Referral Status). */
+.referral-filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px 16px;
+    align-items: end;
+}
+
+.referral-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.referral-filter-search {
+    grid-column: span 2;
+}
+
+.referral-filter label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.referral-filter select,
+.referral-filter input {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+}
+
+.referral-filter select:focus,
+.referral-filter input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(29, 90, 168, 0.15);
+}
+
+.referral-filters-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.referral-filters-count {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-muted);
+}
+
+@media (max-width: 560px) {
+    .referral-filter-search { grid-column: auto; }
+}
+
+/* mountPagedTable() (js/utils.js) hides the bar when everything fits. */
+.accounts-pagination[hidden] {
+    display: none;
+}
+
 .accounts-pagination .accounts-page-info {
     font-size: 13px;
     color: #5a6b80;
@@ -7982,6 +9837,17 @@ footer {
    elsewhere as a strict 3-up grid) isn't changed for every other page. */
 .referral-person-row-with-age {
     grid-template-columns: 1fr 1fr 1fr 0.6fr;
+}
+
+/* LRN lookup above the Name/Grade/Gender row — sized for a 12-digit
+   number rather than stretched across the whole card. */
+.referral-person-lrn-field {
+    max-width: 420px;
+}
+
+.referral-person-lrn-field input {
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
 }
 
 .form-row-two {

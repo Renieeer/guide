@@ -60,7 +60,7 @@
         <div class="auth-right">
             <div class="auth-box">
                 <h1>Welcome Back</h1>
-                <p class="auth-subtitle">Sign in to your account to continue</p>
+                <p class="auth-subtitle">Students, teachers, counselors and coordinators all sign in here</p>
 
                 <form id="loginForm" class="auth-form">
                     <div id="loginError" class="error-alert"></div>
@@ -88,13 +88,25 @@
                     </button>
                 </form>
 
+                <!-- Only students and teachers can sign themselves up;
+                     teachers need a coordinator's access code on the
+                     next page. Counselor/coordinator accounts are made by
+                     the SDO, so they only ever use the form above. -->
                 <div class="auth-divider">
-                    <span>Don't have an account?</span>
-                    <a href="{{ url('register') }}" class="auth-link">Create New Account <i class="bi bi-arrow-right"></i></a>
+                    <span>Don't have an account? Register as:</span>
                 </div>
-
-                <p class="text-muted" style="text-align:center; margin-top: 16px; font-size: 13px;">
-                    Teacher? <a href="{{ url('staff-login') }}" class="auth-link">Go to Staff Login</a>
+                <div class="register-choice">
+                    <a href="{{ route('register', ['role' => 'student']) }}" class="register-choice-btn">
+                        <i class="bi bi-mortarboard"></i>
+                        <span>Student</span>
+                    </a>
+                    <a href="{{ route('register', ['role' => 'teacher']) }}" class="register-choice-btn">
+                        <i class="bi bi-person-workspace"></i>
+                        <span>Teacher</span>
+                    </a>
+                </div>
+                <p class="register-choice-note">
+                    Counselors and coordinators: your account is set up by the SDO. Just sign in above.
                 </p>
             </div>
         </div>

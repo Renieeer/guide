@@ -21,7 +21,7 @@
                 <div>
                     <div class="page-hero-eyebrow"><i class="bi bi-diagram-3"></i> Case Management</div>
                     <h2 class="page-hero-title">Referrals Management</h2>
-                    <p class="page-hero-text">Review and manage all student referrals, track case status, and coordinate with counselors and teachers.</p>
+                    <p class="page-hero-text">Review and manage active student referrals (pending and in progress), track case status, and coordinate with counselors and teachers. Completed referrals are not listed here.</p>
                 </div>
             </div>
 
@@ -107,7 +107,6 @@
                                     <option value="">All</option>
                                     <option value="pending">Pending</option>
                                     <option value="in-progress">In Progress</option>
-                                    <option value="completed">Completed</option>
                                 </select>
                             </div>
                             <div>
@@ -130,7 +129,6 @@
                                     <option value="4">Stage 4</option>
                                     <option value="5">Stage 5</option>
                                     <option value="6">Stage 6</option>
-                                    <option value="7">Stage 7</option>
                                 </select>
                             </div>
                             <button class="btn btn-primary" onclick="applyFilters()">Filter</button>

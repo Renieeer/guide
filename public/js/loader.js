@@ -126,15 +126,17 @@
         var c = navigator.connection;
         return !!(c && (c.saveData || /(^|-)2g$|3g/.test(c.effectiveType || '') || c.rtt >= 800));
     }
+    var slowText = '';
     function setSlow() {
-        msg.textContent = 'Slow connection detected - still loading, please wait...';
+        msg.textContent = slowText;
         msg.className = 'gms-msg slow';
     }
-    function show() {
+    function show(text, slow) {
         clearTimeout(hideTimer);
         shownAt = Date.now();
         el.classList.remove('gms-done');
-        msg.textContent = 'Loading...';
+        slowText = slow || 'Slow connection detected - still loading, please wait...';
+        msg.textContent = text || 'Loading...';
         msg.className = 'gms-msg';
         clearTimeout(slowTimer);
         clearTimeout(failTimer);
@@ -162,6 +164,27 @@
         shownAt = 0;
         if (slowConnection()) show(); else armTimer = setTimeout(show, SLOW_AFTER);
     }
+
+    // Same screen while an action is processing (e.g. a confirmed save, see
+    // confirmAction() in utils.js). Only shown if it's still running after
+    // BUSY_AFTER ms (at once on a known-slow connection), so quick saves
+    // never flash it. Calls nest: it hides when every start() has its stop().
+    var BUSY_AFTER = 800;
+    var busyCount = 0, busyTimer = null;
+    window.gmsBusy = {
+        start: function (text) {
+            if (++busyCount > 1) return;
+            clearTimeout(busyTimer);
+            busyTimer = setTimeout(function () {
+                show(text || 'Processing, please wait...', 'Slow connection detected - still processing, please wait...');
+            }, slowConnection() ? 0 : BUSY_AFTER);
+        },
+        stop: function () {
+            if (busyCount === 0 || --busyCount > 0) return;
+            clearTimeout(busyTimer);
+            hide();
+        }
+    };
 
     arm();
     if (document.readyState === 'complete') hide();

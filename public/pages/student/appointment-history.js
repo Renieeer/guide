@@ -329,9 +329,11 @@ function shRenderFolders() {
 }
 
 function shEmptyFolderHtml(noun, hasActiveFilters) {
+    // api/student-history leaves closed cases out for students, so an
+    // empty list means nothing is open right now, not that nothing ever was.
     const message = hasActiveFilters
         ? `No ${noun} match the current filters.`
-        : `No ${noun} recorded yet.`;
+        : `No open ${noun} right now. Closed cases are no longer listed here.`;
     return `<div class="sh-folder-empty">${esc(message)}</div>`;
 }
 

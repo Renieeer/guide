@@ -53,13 +53,11 @@ document.getElementById('loginForm')?.addEventListener('submit', async function(
             headers: {
                 'Content-Type': 'application/json'
             },
+            // One login for every role — the server reads the role from
+            // the account and dashboardRoutes picks where to go.
             body: JSON.stringify({
                 email: email,
-                password: password,
-                // Teacher accounts sign in on staff-login, everyone else
-                // here. The server refuses the wrong page before logging in
-                // (see LoginController for why it can't be done after).
-                portal: document.body.getAttribute('data-portal') === 'staff' ? 'staff' : 'main'
+                password: password
             })
         });
 

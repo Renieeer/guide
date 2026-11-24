@@ -63,9 +63,9 @@ class RegisterController extends Controller
             }
 
             // Only students self-register through this endpoint. Teachers need a
-            // coordinator-issued access code (see staff-register.php ->
-            // api/teacher-signup-request.php) so a student can't just fill this
-            // form with role=teacher and their own email to get a staff account.
+            // coordinator-issued access code (the register page's Teacher option
+            // -> api/teacher-signup-request) so a student can't just send
+            // role=teacher with their own email to get a staff account.
             // Counselor, coordinator, and the combined counselor-and-coordinator
             // role are SDO-only (created via School Management) so their
             // grade-scope assignment stays under district control. All of this is
@@ -73,7 +73,7 @@ class RegisterController extends Controller
             $validRoles = ['student'];
             if (!in_array($role, $validRoles)) {
                 if ($role === 'teacher') {
-                    json_out(['success' => false, 'message' => 'Teacher accounts require an access code from your school coordinator. Please use the Staff Registration page.']);
+                    json_out(['success' => false, 'message' => 'Teacher accounts require an access code from your school coordinator. Choose Teacher on the Register page and enter the code.']);
                 } else {
                     json_out(['success' => false, 'message' => 'Counselor and Coordinator accounts are created by the SDO. Please contact your school district office.']);
                 }

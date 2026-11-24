@@ -1,7 +1,19 @@
 // Coordinator Referrals Management Script
 
 let currentReferral = null;
+// Every referral for this school/grade scope — kept so a link straight to
+// one (?id=...) still opens it, even after it's closed.
 let allReferrals = [];
+// What the Referrals Management list shows: active cases only.
+let activeReferrals = [];
+
+// The list shows only active cases — Pending or In Progress. A referral
+// that reached Stage 7 (Case Closing), whether completed or rejected, is
+// left off it.
+function isActiveReferral(r) {
+    const status = String(r.status || getStatusLabel(r.stage)).trim().toLowerCase();
+    return Number(r.stage || 1) < 7 && (status === 'pending' || status === 'in-progress');
+}
 
 async function initReferralsPage() {
     initPage();
@@ -72,6 +84,7 @@ function fetchCoordinatorReferrals() {
         .then(result => {
             if (result.success) {
                 allReferrals = result.data || [];
+                activeReferrals = allReferrals.filter(isActiveReferral);
             } else {
                 throw new Error(result.message || 'Failed to fetch referrals');
             }
@@ -266,19 +279,24 @@ function backToList() {
     document.getElementById('referralListView').style.display = 'block';
     window.history.pushState({}, '', '?');
     loadReferralsList();
+    // Reload so a referral just closed or rejected in the detail view drops
+    // off the active list (and stage changes show) without a page refresh.
+    fetchCoordinatorReferrals()
+        .then(loadReferralsList)
+        .catch(error => console.error('Error refreshing referrals:', error));
 }
 
 function loadReferralsList() {
     const tbody = document.getElementById('referralsTableBody');
 
-    if (allReferrals.length === 0) {
+    if (activeReferrals.length === 0) {
         tbody.innerHTML = `<tr>
-            <td colspan="10" style="text-align: center; padding: 30px; color: #999;">No referrals found</td>
+            <td colspan="10" style="text-align: center; padding: 30px; color: #999;">No active referrals right now</td>
         </tr>`;
         return;
     }
 
-    tbody.innerHTML = allReferrals.map(referral => `
+    tbody.innerHTML = activeReferrals.map(referral => `
         <tr>
             <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
@@ -309,7 +327,7 @@ function applyFilters() {
     const urgencyFilter = document.getElementById('urgencyFilter').value;
     const stageFilter = document.getElementById('stageFilter').value;
 
-    let filtered = allReferrals;
+    let filtered = activeReferrals;
 
     if (statusFilter) {
         filtered = filtered.filter(r => (r.status || getStatusLabel(r.stage)) === statusFilter);
@@ -326,7 +344,7 @@ function applyFilters() {
     const tbody = document.getElementById('referralsTableBody');
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr>
-            <td colspan="10" style="text-align: center; padding: 30px; color: #999;">No referrals found</td>
+            <td colspan="10" style="text-align: center; padding: 30px; color: #999;">No active referrals match these filters</td>
         </tr>`;
         return;
     }

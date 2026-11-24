@@ -541,8 +541,9 @@ class CaseReportController extends Controller
 
         /* ── PER-DISTRICT ROLLUP ── (schools, staff headcounts, referrals, resolution)
            Real source: schools.district joined against users_tables/referral by
-           school name — replaces the old Math.random() comparative tables in
-           pages/sdo/analytics.js and pages/sdo/school-reports.js. */
+           school name. (The SDO dashboard, pages/sdo/dashboard.js, computes
+           its district table from the referral list itself so that table can
+           follow the dashboard's level/school filters too.) */
         if ($action === 'district_summary') {
             $period = trim((string)($_GET['period'] ?? 'all'));
             $rangeStart = trim((string)($_GET['start'] ?? ''));

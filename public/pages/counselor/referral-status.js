@@ -71,7 +71,7 @@ async function loadReferralStatus() {
                 loadListView();
             }
 
-            document.getElementById('stageFilter').addEventListener('change', applyStageFilter);
+            wireReferralFilters();
         })
         .catch(error => {
             console.error('Error loading referrals:', error);
@@ -272,20 +272,13 @@ function renderStageSection(referral, viewStage) {
         interventionSection.style.display = 'none';
     }
 
-    // Show the Student Follow-up log for stage 6 — a dated, repeatable
-    // check-in at whatever interval the counselor sets (weekly/biweekly/
-    // monthly/custom), unlike the one-shot forms on the other stages.
+    // Stage 6 — pick the days the student comes back on a calendar that
+    // shows every schedule already set, plus a dated check-in log. Shared
+    // with the other referral page: see js/follow-up-scheduler.js.
     const followUpSection = document.getElementById('followUpFormSection');
     if (viewStage === 6) {
         followUpSection.style.display = 'block';
-        const followUpDateEl = document.getElementById('followUpDate');
-        if (!followUpDateEl.value) {
-            followUpDateEl.value = localDateString();
-        }
-        document.getElementById('followUpInterval').onchange = updateFollowUpCustomDaysVisibility;
-        updateFollowUpCustomDaysVisibility();
-        document.getElementById('followUpForm').onsubmit = submitFollowUp;
-        loadFollowUpHistory(referral.id);
+        FollowUpScheduler.open(referral);
     } else {
         followUpSection.style.display = 'none';
     }
@@ -943,96 +936,6 @@ window.addEventListener('afterprint', () => {
     document.body.classList.remove('print-acknowledgement');
 });
 
-const FOLLOW_UP_INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
-
-function updateFollowUpCustomDaysVisibility() {
-    const isCustom = document.getElementById('followUpInterval').value === 'custom';
-    document.getElementById('followUpCustomDaysGroup').style.display = isCustom ? '' : 'none';
-}
-
-function followUpIntervalDays() {
-    const label = document.getElementById('followUpInterval').value;
-    if (label === 'custom') {
-        return Math.max(1, parseInt(document.getElementById('followUpCustomDays').value, 10) || 1);
-    }
-    return FOLLOW_UP_INTERVAL_DAYS[label] || 7;
-}
-
-function loadFollowUpHistory(referralId) {
-    const container = document.getElementById('followUpHistoryList');
-    if (!container) return;
-    container.innerHTML = '<p class="text-muted">Loading follow-up history...</p>';
-
-    fetch(`../../api/referral-follow-up?referral_id=${referralId}`)
-        .then(response => response.json())
-        .then(result => {
-            if (!result.success) throw new Error(result.message || 'Failed to load follow-up history');
-            const rows = result.data || [];
-            if (rows.length === 0) {
-                container.innerHTML = '<p class="text-muted">No follow-up check-ins recorded yet.</p>';
-                return;
-            }
-
-            const intervalLabels = { weekly: 'Weekly', biweekly: 'Biweekly', monthly: 'Monthly', custom: 'Custom' };
-            container.innerHTML = rows.map(row => `
-                <div style="background:#f9fafb; border-radius:8px; padding:12px 14px; margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <strong>${formatDate(row.follow_up_date)}</strong>
-                        <small class="text-muted">${escapeHtml(intervalLabels[row.interval_label] || row.interval_label)} (${escapeHtml(row.interval_days)}d) — next due ${formatDate(row.next_follow_up_date)}</small>
-                    </div>
-                    ${row.notes ? `<div>${escapeHtml(row.notes)}</div>` : ''}
-                    <div style="margin-top:6px;"><small class="text-muted">Recorded by ${escapeHtml(row.counselor_name || 'Counselor')}</small></div>
-                </div>
-            `).join('');
-        })
-        .catch(error => {
-            container.innerHTML = `<p class="text-danger">${escapeHtml(error.message)}</p>`;
-        });
-}
-
-function submitFollowUp(e) {
-    e.preventDefault();
-
-    const user = getCurrentUser();
-    const intervalLabel = document.getElementById('followUpInterval').value;
-    const intervalDays = followUpIntervalDays();
-    const followUpDate = document.getElementById('followUpDate').value;
-    const notes = document.getElementById('followUpNotes').value.trim();
-
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
-
-    fetch('../../api/referral-follow-up', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            referral_id: currentReferral.id,
-            counselor_id: user?.id || '',
-            counselor_name: user?.name || '',
-            interval_label: intervalLabel,
-            interval_days: intervalDays,
-            follow_up_date: followUpDate,
-            notes: notes
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (!result.success) throw new Error(result.message || 'Failed to save follow-up');
-        showAlert('Follow-up saved.', 'success');
-        document.getElementById('followUpNotes').value = '';
-        loadFollowUpHistory(currentReferral.id);
-    })
-    .catch(error => {
-        showAlert(error.message || 'Failed to save follow-up.', 'error');
-    })
-    .finally(() => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-    });
-}
-
 function renderAcknowledgementChecklist() {
     const container = document.getElementById('ackChecklist');
     container.innerHTML = ACKNOWLEDGEMENT_CHECKLIST_ITEMS.map(item => `
@@ -1643,7 +1546,8 @@ function closeCase() {
         const apiUrl = `../../api/update-referral`;
         const user = getCurrentUser();
 
-        fetch(apiUrl, {
+        // Returned so the confirm dialog shows it's processing until done.
+        return fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1681,17 +1585,101 @@ function backToList() {
     loadListView();
 }
 
-function loadListView() {
-    const tbody = document.getElementById('referralsTableBody');
+// ── Referral list: filters, sorting and paging ───────────────────────
+// Every filter applies as soon as it changes (search waits for a short
+// pause in typing). The list is paged 20 at a time with the shared
+// mountPagedTable() (js/utils.js). Filter values stay put while a referral
+// is open, so "Back to list" returns to the same filtered view.
 
-    if (allReferrals.length === 0) {
-        tbody.innerHTML = `<tr>
-            <td colspan="9" style="text-align: center; padding: 30px; color: #999;">No referrals found for your school</td>
-        </tr>`;
-        return;
+// urgent/crisis are shown as High (see URGENCY_LEVELS in js/utils.js).
+function referralUrgencyKey(r) {
+    const key = String(r.urgency || 'normal').trim().toLowerCase();
+    if (key === 'high' || key === 'urgent' || key === 'crisis') return 'high';
+    if (key === 'medium' || key === 'low') return key;
+    return 'normal';
+}
+
+const REFERRAL_URGENCY_RANK = { high: 3, medium: 2, low: 1, normal: 0 };
+
+function referralStatusKey(r) {
+    return String(r.status || getStatusLabel(r.stage)).trim().toLowerCase().replace(/[\s_]+/g, '-');
+}
+
+function referralGradeNumber(r) {
+    const m = String(r.grade || '').match(/\d+/);
+    return m ? Number(m[0]) : null;
+}
+
+function readReferralFilters() {
+    const val = (id) => (document.getElementById(id)?.value || '').trim();
+    return {
+        search: val('rfSearch').toLowerCase(),
+        status: val('rfStatus'),
+        stage: val('rfStage'),
+        urgency: val('rfUrgency'),
+        grade: val('rfGrade'),
+        role: val('rfRole'),
+        from: val('rfFrom'),
+        to: val('rfTo'),
+        sort: val('rfSort') || 'newest'
+    };
+}
+
+function referralMatchesFilters(r, f) {
+    if (f.status && referralStatusKey(r) !== f.status) return false;
+    if (f.stage && Number(r.stage) !== Number(f.stage)) return false;
+    if (f.urgency && referralUrgencyKey(r) !== f.urgency) return false;
+    if (f.grade && String(referralGradeNumber(r)) !== f.grade) return false;
+    if (f.role) {
+        const role = String(r.referral_role || '').toLowerCase();
+        if (f.role === 'none' ? (role === 'offender' || role === 'victim') : role !== f.role) return false;
     }
+    if (f.from || f.to) {
+        const day = String(r.date_submitted || '').slice(0, 10);
+        if (!day) return false;
+        // Either order works; the earlier date is the start.
+        const [lo, hi] = f.from && f.to && f.from > f.to ? [f.to, f.from] : [f.from, f.to];
+        if (lo && day < lo) return false;
+        if (hi && day > hi) return false;
+    }
+    if (f.search) {
+        const haystack = [r.referral_code, r.id, r.student_name, r.referral_reason, r.teacher_name, r.section]
+            .map(v => String(v == null ? '' : v).toLowerCase()).join(' ');
+        if (!haystack.includes(f.search)) return false;
+    }
+    return true;
+}
 
-    tbody.innerHTML = allReferrals.map(referral => `
+function sortReferrals(list, sort) {
+    const byDate = (a, b) => String(b.date_submitted || '').localeCompare(String(a.date_submitted || ''));
+    const sorted = list.slice();
+    switch (sort) {
+        case 'oldest':
+            return sorted.sort((a, b) => byDate(b, a));
+        case 'urgency':
+            return sorted.sort((a, b) => REFERRAL_URGENCY_RANK[referralUrgencyKey(b)] - REFERRAL_URGENCY_RANK[referralUrgencyKey(a)] || byDate(a, b));
+        case 'stage':
+            return sorted.sort((a, b) => (Number(a.stage) || 1) - (Number(b.stage) || 1) || byDate(a, b));
+        case 'name':
+            return sorted.sort((a, b) => String(a.student_name || '').localeCompare(String(b.student_name || '')) || byDate(a, b));
+        default:
+            return sorted.sort(byDate);
+    }
+}
+
+// Grade options come from the referrals actually on file (Grade 1-12).
+function populateReferralGradeFilter() {
+    const select = document.getElementById('rfGrade');
+    if (!select) return;
+    const current = select.value;
+    const grades = [...new Set(allReferrals.map(referralGradeNumber).filter(g => g !== null))].sort((a, b) => a - b);
+    select.innerHTML = '<option value="">All grades</option>' +
+        grades.map(g => `<option value="${g}">Grade ${g}</option>`).join('');
+    if (grades.map(String).includes(current)) select.value = current;
+}
+
+function referralRowHtml(referral) {
+    return `
         <tr>
             <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
             <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
@@ -1702,10 +1690,64 @@ function loadListView() {
             <td>${escapeHtml(referral.stage)}/7</td>
             <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">View</button>
+                <button class="btn btn-sm btn-primary" onclick="selectReferral(${Number(referral.id)})">View</button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+}
+
+function hasActiveReferralFilters(f) {
+    return Boolean(f.search || f.status || f.stage || f.urgency || f.grade || f.role || f.from || f.to);
+}
+
+function loadListView() {
+    populateReferralGradeFilter();
+    const f = readReferralFilters();
+    const rows = sortReferrals(allReferrals.filter(r => referralMatchesFilters(r, f)), f.sort);
+
+    const countEl = document.getElementById('rfCount');
+    if (countEl) {
+        countEl.textContent = allReferrals.length === 0
+            ? ''
+            : (hasActiveReferralFilters(f)
+                ? `Showing ${rows.length} of ${allReferrals.length} referrals`
+                : `${allReferrals.length} referral${allReferrals.length === 1 ? '' : 's'}`);
+    }
+
+    const emptyText = allReferrals.length === 0
+        ? 'No referrals found for your school'
+        : 'No referrals match these filters. Try clearing some of them.';
+    mountPagedTable(
+        document.getElementById('referralsTableBody'),
+        document.getElementById('rfPager'),
+        rows.map(referralRowHtml),
+        { pageSize: 20, emptyHtml: `<tr><td colspan="9" style="text-align: center; padding: 30px; color: #999;">${emptyText}</td></tr>` }
+    );
+}
+
+function clearReferralFilters() {
+    ['rfSearch', 'rfStatus', 'rfStage', 'rfUrgency', 'rfGrade', 'rfRole', 'rfFrom', 'rfTo'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+    });
+    const sort = document.getElementById('rfSort');
+    if (sort) sort.value = 'newest';
+    loadListView();
+}
+
+function wireReferralFilters() {
+    ['rfStatus', 'rfStage', 'rfUrgency', 'rfGrade', 'rfRole', 'rfFrom', 'rfTo', 'rfSort'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.addEventListener('change', loadListView);
+    });
+    let searchTimer = null;
+    document.getElementById('rfSearch')?.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadListView, 200);
+    });
+    document.getElementById('rfClear')?.addEventListener('click', clearReferralFilters);
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    ['rfFrom', 'rfTo'].forEach(id => { const field = document.getElementById(id); if (field) field.max = todayStr; });
 }
 
 function selectReferral(referralId) {
@@ -1714,45 +1756,6 @@ function selectReferral(referralId) {
         window.history.pushState({}, '', `?id=${referral.referral_code || referralId}`);
         loadDetailView(referral);
     }
-}
-
-function applyStageFilter() {
-    const stage = document.getElementById('stageFilter').value;
-    const tbody = document.getElementById('referralsTableBody');
-
-    // Filter by stage if selected
-    let filtered = allReferrals;
-    if (stage) {
-        filtered = allReferrals.filter(r => r.stage === parseInt(stage));
-    }
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr>
-            <td colspan="9" style="text-align: center; padding: 30px; color: #999;">No referrals found</td>
-        </tr>`;
-        return;
-    }
-
-    tbody.innerHTML = filtered.map(referral => `
-        <tr>
-            <td><strong>${escapeHtml(referral.referral_code || referral.id)}</strong></td>
-            <td>${escapeHtml(referral.student_name)} ${referralRoleBadge(referral.referral_role)}</td>
-            <td>${escapeHtml(referral.grade || 'N/A')}</td>
-            <td>${escapeHtml(referral.referral_reason)}</td>
-            <td>${formatDate(referral.date_submitted)}</td>
-            <td>${urgencyBadge(referral.urgency)}</td>
-            <td>${escapeHtml(referral.stage)}/7</td>
-            <td>${createBadge(referral.status || getStatusLabel(referral.stage))}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="selectReferral(${referral.id})">View</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function clearStageFilter() {
-    document.getElementById('stageFilter').value = '';
-    loadListView();
 }
 
 function getStatusLabel(stage) {

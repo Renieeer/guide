@@ -32,6 +32,19 @@
             margin: 0 auto !important;
             border-collapse: collapse !important;
         }
+
+        /* Appointment/event details and the propose-change form open on top
+           of the Create Schedule modal's day list, so they stack above it
+           (and the edit form above the request details it is opened from). */
+        #requestModal,
+        #viewEventModal {
+            z-index: 1010;
+        }
+
+        #editAppointmentModal,
+        #declineAppointmentModal {
+            z-index: 1020;
+        }
     </style>
     <link rel="stylesheet" href="{{ asset('css/responsive.css') }}?v={{ filemtime(public_path('css/responsive.css')) }}">
 </head>
@@ -86,28 +99,6 @@
                             <div id="scheduleCalendar"></div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Student Appointment Requests -->
-                <div class="table-container mb-5">
-                    <h2 class="mb-4"><i class="bi bi-hourglass-split"></i> Student Appointment Requests</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Student</th>
-                                <th>Requested Date</th>
-                                <th>Time</th>
-                                <th>Reason</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="appointmentRequestsBody">
-                            <tr>
-                                <td colspan="6" class="text-center p-5 text-muted">No appointment requests yet</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
 
                 <!-- Edit Appointment Modal -->
@@ -268,13 +259,34 @@
 
     <!-- View Event Modal (created dynamically by JS) -->
 
-    <!-- Create Schedule Modal (opened by calendar day click) -->
+    <!-- Create Schedule Modal (opened by calendar day click). The left panel
+         lists what is already booked on that day; past days and weekends open
+         the panel alone (view-only). -->
     <div id="createScheduleModal" class="modal" style="display: none;">
-        <div class="modal-content schedule-create-modal">
+        <div class="modal-content schedule-create-modal schedule-day-modal">
             <div class="modal-header">
                 <h2><i class="bi bi-calendar-plus"></i> Create Schedule</h2>
                 <span class="modal-close" id="closeCreateScheduleModal">&times;</span>
             </div>
+            <div class="schedule-day-layout">
+            <aside class="schedule-day-agenda" aria-label="Appointments and events on the selected day">
+                <div class="schedule-day-head">
+                    <div class="schedule-day-badge" aria-hidden="true">
+                        <span class="schedule-day-badge-month" id="scheduleDayMonth"></span>
+                        <span class="schedule-day-badge-num" id="scheduleDayNum"></span>
+                    </div>
+                    <div class="schedule-day-heading">
+                        <span class="schedule-day-weekday" id="scheduleDayWeekday"></span>
+                        <span class="schedule-day-fulldate" id="scheduleDayFull"></span>
+                    </div>
+                </div>
+                <div class="schedule-day-counts" id="scheduleDayCounts"></div>
+                <div class="schedule-day-section">
+                    <span class="schedule-modal-section-label"><i class="bi bi-clock-history"></i> On this day</span>
+                    <div class="schedule-day-list" id="scheduleDayList"></div>
+                </div>
+                <p class="schedule-day-notice" id="scheduleDayNotice" hidden></p>
+            </aside>
             <div class="modal-body">
                 <form id="createScheduleModalForm">
                     <div class="form-group">
@@ -376,6 +388,7 @@
                         <button type="button" class="btn btn-secondary" id="cancelCreateScheduleModal">Cancel</button>
                     </div>
                 </form>
+            </div>
             </div>
         </div>
     </div>

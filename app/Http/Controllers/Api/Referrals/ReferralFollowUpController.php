@@ -75,19 +75,33 @@ class ReferralFollowUpController extends Controller
             if ($followUpDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $followUpDate)) {
                 $this->send_json(400, ['success' => false, 'message' => 'A valid follow-up date is required']);
             }
-            if ($intervalDays <= 0) {
-                $this->send_json(400, ['success' => false, 'message' => 'Interval must be at least 1 day']);
-            }
             if ($notes === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'Enter a note before saving']);
             }
 
-            $allowedLabels = ['weekly', 'biweekly', 'monthly', 'custom'];
-            if (!in_array($intervalLabel, $allowedLabels, true)) {
-                $intervalLabel = 'custom';
+            // 'scheduled': the counselor books the follow-up sessions on the
+            // Stage 6 calendar (js/follow-up-scheduler.js), so the next date is
+            // the next session already on the calendar (or none), sent as
+            // next_follow_up_date. The interval labels are older check-ins,
+            // where the next date was the check-in date + interval_days.
+            if ($intervalLabel === 'scheduled') {
+                $nextFollowUpDate = trim((string)($body['next_follow_up_date'] ?? ''));
+                if ($nextFollowUpDate !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $nextFollowUpDate) || $nextFollowUpDate <= $followUpDate)) {
+                    $this->send_json(400, ['success' => false, 'message' => 'The next session must be a date after this check-in']);
+                }
+                $nextFollowUpDate = $nextFollowUpDate !== '' ? $nextFollowUpDate : null;
+                $intervalDays = $nextFollowUpDate !== null
+                    ? (int) round((strtotime($nextFollowUpDate) - strtotime($followUpDate)) / 86400)
+                    : 0;
+            } else {
+                if ($intervalDays <= 0) {
+                    $this->send_json(400, ['success' => false, 'message' => 'Interval must be at least 1 day']);
+                }
+                if (!in_array($intervalLabel, ['weekly', 'biweekly', 'monthly', 'custom'], true)) {
+                    $intervalLabel = 'custom';
+                }
+                $nextFollowUpDate = date('Y-m-d', strtotime($followUpDate . " +{$intervalDays} days"));
             }
-
-            $nextFollowUpDate = date('Y-m-d', strtotime($followUpDate . " +{$intervalDays} days"));
 
             $stmt = $conn->prepare('
         INSERT INTO referral_follow_up (

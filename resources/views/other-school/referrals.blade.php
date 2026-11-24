@@ -306,41 +306,82 @@
                             </div>
                         </div>
 
-                        <!-- Student Follow-up (Stage 6) -->
+                        <!-- Student Follow-up (Stage 6) — calendar, sessions and check-ins
+                             are driven by js/follow-up-scheduler.js. -->
                         <div id="followUpFormSection" style="display: none;">
                             <h3 class="text-primary">Student Follow-up (Stage 6)</h3>
-                            <p class="text-muted" style="margin-top:-6px;">Log a dated check-in with the student at the interval you set — each entry shows when the next one is due.</p>
+                            <p class="text-muted" style="margin-top:-6px;">Pick every day the student should come back. Each day shows how many students are already booked, so you can spread sessions out and keep the office from getting crowded.</p>
 
-                            <div id="followUpHistoryList" style="margin-bottom: 16px;"></div>
-
-                            <form id="followUpForm">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="followUpInterval">Follow-up Interval</label>
-                                        <select id="followUpInterval">
-                                            <option value="weekly">Weekly</option>
-                                            <option value="biweekly">Biweekly</option>
-                                            <option value="monthly">Monthly</option>
-                                            <option value="custom">Custom</option>
-                                        </select>
+                            <div class="fus-layout">
+                                <div class="appoint-calendar-col fus-calendar">
+                                    <div class="appoint-calendar-header">
+                                        <div class="appoint-calendar-title-group">
+                                            <span class="appoint-calendar-eyebrow">Pick follow-up days</span>
+                                            <span class="appoint-calendar-title"><i class="bi bi-calendar3"></i> <span id="fusCalendarMonth"></span></span>
+                                        </div>
+                                        <div class="appoint-calendar-nav">
+                                            <button type="button" class="appoint-calendar-nav-btn" id="fusPrevMonth" aria-label="Previous month"><i class="bi bi-chevron-left"></i></button>
+                                            <button type="button" class="appoint-calendar-nav-btn fus-today-btn" id="fusTodayBtn">Today</button>
+                                            <button type="button" class="appoint-calendar-nav-btn" id="fusNextMonth" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
+                                        </div>
                                     </div>
-                                    <div class="form-group" id="followUpCustomDaysGroup" style="display:none;">
-                                        <label for="followUpCustomDays">Custom Interval (days)</label>
-                                        <input type="number" id="followUpCustomDays" min="1" value="7">
+                                    <div class="appoint-mini-grid fus-grid" id="fusCalendarGrid"></div>
+                                    <div class="appoint-calendar-legend fus-legend">
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-light">2</span> 1&ndash;2 students</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-busy">3</span> 3&ndash;4 busy</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-load load-full">5</span> 5+ crowded</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-dot"></span> Event</span>
+                                        <span class="appoint-legend-item"><span class="fus-legend-own"></span> This student's session</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-swatch"></span> Picked</span>
+                                        <span class="appoint-legend-item"><span class="appoint-legend-ring"></span> Today</span>
                                     </div>
-                                    <div class="form-group">
-                                        <label for="followUpDate">Follow-up Date</label>
-                                        <input type="date" id="followUpDate">
+                                    <div class="fus-agenda">
+                                        <div class="appoint-details-header">
+                                            <span class="appoint-section-label">On this day</span>
+                                            <div class="appoint-selected-date-chip" id="fusAgendaDate"></div>
+                                        </div>
+                                        <div id="fusAgendaList"></div>
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="followUpNotes">Notes — student's progress/well-being at this check-in</label>
-                                    <textarea id="followUpNotes" name="followUpNotes" placeholder="What was observed or discussed during this follow-up..."></textarea>
-                                </div>
+                                <div class="fus-side">
+                                    <div class="fus-panel">
+                                        <div class="appoint-details-header">
+                                            <span class="appoint-section-label">Sessions to schedule</span>
+                                            <span class="fus-count" id="fusSelectedCount"></span>
+                                        </div>
+                                        <div id="fusSelectedList"></div>
+                                        <div class="form-group" style="margin:12px 0 0;">
+                                            <label for="fusNote">Note for the student (optional)</label>
+                                            <input type="text" id="fusNote" placeholder="e.g. Bring your journal">
+                                        </div>
+                                        <button type="button" class="btn btn-primary fus-schedule-btn" id="fusScheduleBtn" disabled><i class="bi bi-calendar-plus"></i> Schedule session</button>
+                                    </div>
 
-                                <button type="submit" class="btn btn-success">Save Follow-up</button>
-                            </form>
+                                    <!-- Check-in log as a folder: each saved check-in is a file inside;
+                                         a new check-in is dated the day it is saved. -->
+                                    <div class="fus-folder is-open" id="fusCheckinFolder">
+                                        <button type="button" class="fus-folder-tab" id="fusFolderToggle" aria-expanded="true" aria-controls="fusFolderBody">
+                                            <i class="bi bi-folder2-open fus-folder-icon" aria-hidden="true"></i>
+                                            <span class="fus-folder-title">Check-in log</span>
+                                            <span class="fus-folder-count" id="fusCheckinCount">0</span>
+                                            <i class="bi bi-chevron-down fus-folder-chevron" aria-hidden="true"></i>
+                                        </button>
+                                        <div class="fus-folder-body" id="fusFolderBody">
+                                            <p class="fus-folder-summary" id="fusFolderSummary"></p>
+                                            <div id="followUpHistoryList" class="fus-files"></div>
+
+                                            <form id="followUpForm" class="fus-file fus-file-new">
+                                                <div class="form-group" style="margin:0;">
+                                                    <label for="followUpNotes"><i class="bi bi-file-earmark-plus"></i> Today's check-in — student's progress/well-being</label>
+                                                    <textarea id="followUpNotes" name="followUpNotes" rows="3" placeholder="What was observed or discussed during this follow-up..."></textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn-success"><i class="bi bi-save"></i> Save Check-in</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Case Closing Acknowledgement (Stage 7) -->
@@ -714,6 +755,7 @@
 
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}"></script>
     <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/follow-up-scheduler.js') }}?v={{ filemtime(public_path('js/follow-up-scheduler.js')) }}"></script>
     <script src="{{ asset('pages/other-school/referrals.js') }}?v={{ filemtime(public_path('pages/other-school/referrals.js')) }}"></script>
 </body>
 </html>

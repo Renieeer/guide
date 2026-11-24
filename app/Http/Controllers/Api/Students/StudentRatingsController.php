@@ -12,6 +12,10 @@ use mysqli;
 // can be attributed to the counselor who actually handled that subject
 // (see counselor_id/counselor_name below) rather than only a free-text
 // subject description.
+//
+// A student rates each counseling case / referral once. After that they can
+// only edit that rating (PUT as a student) — a second POST for the same
+// subject is refused, and students can't delete ratings.
 class StudentRatingsController extends Controller
 {
     public function __invoke()
@@ -41,7 +45,7 @@ class StudentRatingsController extends Controller
             }
 
             $sql = 'SELECT rating_id, student_account_id, student_name, school_attended, subject_type, subject_id,
-                   subject_label, counselor_id, counselor_name, rating, comment, anonymous, is_read, created_at
+                   subject_label, counselor_id, counselor_name, rating, comment, anonymous, is_read, created_at, updated_at
             FROM student_ratings WHERE 1=1';
             $types = '';
             $params = [];
@@ -95,7 +99,8 @@ class StudentRatingsController extends Controller
                     'comment' => $row['comment'] ?? '',
                     'anonymous' => (bool)$row['anonymous'],
                     'read' => (bool)$row['is_read'],
-                    'dateSent' => $row['created_at']
+                    'dateSent' => $row['created_at'],
+                    'editedAt' => $row['updated_at'] ?? null
                 ];
             }
             $stmt->close();
@@ -122,6 +127,25 @@ class StudentRatingsController extends Controller
 
             if ($studentAccountId === 0 || $subjectType === '' || $subjectId === '' || $rating < 1 || $rating > 5 || $comment === '') {
                 $this->send_json(400, ['success' => false, 'message' => 'Missing required fields']);
+            }
+
+            // Feedback opens once the session/referral has ended.
+            if (!$this->subject_has_ended($conn, $subjectType, $subjectId)) {
+                $this->send_json(409, ['success' => false, 'message' => 'You can give feedback once this counseling session or referral has ended.']);
+            }
+
+            // One rating per counseling case / referral; after that, edit it.
+            $existing = $conn->prepare('SELECT rating_id FROM student_ratings WHERE student_account_id = ? AND subject_type = ? AND subject_id = ? LIMIT 1');
+            $existing->bind_param('iss', $studentAccountId, $subjectType, $subjectId);
+            $existing->execute();
+            $existingRow = $existing->get_result()->fetch_assoc();
+            $existing->close();
+            if ($existingRow) {
+                $this->send_json(409, [
+                    'success' => false,
+                    'message' => 'You already rated this. You can edit your rating in Your Ratings History.',
+                    'data' => ['id' => $existingRow['rating_id']]
+                ]);
             }
 
             $ratingId = 'rating_' . bin2hex(random_bytes(8));
@@ -165,6 +189,42 @@ class StudentRatingsController extends Controller
                 $this->send_json(400, ['success' => false, 'message' => 'id is required']);
             }
 
+            // A student edits their own rating: stars, comment, anonymous.
+            // The subject it's about stays fixed. An edit is marked unread
+            // again so staff notice the change.
+            if (api_role() === 'student') {
+                $rating = (int)($body['rating'] ?? 0);
+                $comment = trim((string)($body['comment'] ?? ''));
+                $anonymous = !empty($body['anonymous']) ? 1 : 0;
+                if ($rating < 1 || $rating > 5 || $comment === '') {
+                    $this->send_json(400, ['success' => false, 'message' => 'A star rating and a comment are required.']);
+                }
+
+                $studentAccountId = api_user_id();
+                $stmt = $conn->prepare('UPDATE student_ratings SET rating = ?, comment = ?, anonymous = ?, is_read = 0, updated_at = NOW() WHERE rating_id = ? AND student_account_id = ?');
+                if (!$stmt) {
+                    $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                }
+                $stmt->bind_param('isisi', $rating, $comment, $anonymous, $ratingId, $studentAccountId);
+                if (!$stmt->execute()) {
+                    $this->send_json(500, ['success' => false, 'message' => 'Failed to update rating: ' . $stmt->error]);
+                }
+                $stmt->close();
+
+                // affected_rows is 0 for an unchanged save too, so check
+                // ownership separately instead of relying on it.
+                $own = $conn->prepare('SELECT 1 FROM student_ratings WHERE rating_id = ? AND student_account_id = ?');
+                $own->bind_param('si', $ratingId, $studentAccountId);
+                $own->execute();
+                $isOwn = (bool)$own->get_result()->fetch_row();
+                $own->close();
+                if (!$isOwn) {
+                    $this->send_json(404, ['success' => false, 'message' => 'Rating not found']);
+                }
+
+                $this->send_json(200, ['success' => true, 'message' => 'Rating updated.']);
+            }
+
             // Staff mark ratings of their own school as read.
             api_require_role(array_merge(api_roles_guidance(), api_roles_sdo()));
             $own = $conn->prepare('SELECT school_attended FROM student_ratings WHERE rating_id = ?');
@@ -190,37 +250,45 @@ class StudentRatingsController extends Controller
         }
 
         if ($method === 'DELETE') {
-            $ratingId = trim((string)($_GET['id'] ?? ''));
-            // Students delete their own ratings; the owner used to be whatever
-            // student_id the page sent.
-            api_require_role(['student']);
-            $studentId = (string) api_user_id();
-            if ($ratingId === '' || $studentId === '') {
-                $this->send_json(400, ['success' => false, 'message' => 'id and student_id are required']);
-            }
-
-            // Ownership check baked into the WHERE clause — a student can only ever
-            // delete their own rating, never one keyed to someone else's account.
-            $stmt = $conn->prepare('DELETE FROM student_ratings WHERE rating_id = ? AND student_account_id = ?');
-            if (!$stmt) {
-                $this->send_json(500, ['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
-            }
-            $studentIdInt = (int)$studentId;
-            $stmt->bind_param('si', $ratingId, $studentIdInt);
-            if (!$stmt->execute()) {
-                $this->send_json(500, ['success' => false, 'message' => 'Failed to delete rating: ' . $stmt->error]);
-            }
-            $deleted = $stmt->affected_rows > 0;
-            $stmt->close();
-
-            if (!$deleted) {
-                $this->send_json(404, ['success' => false, 'message' => 'Rating not found or access denied']);
-            }
-
-            $this->send_json(200, ['success' => true]);
+            // Ratings stay on record; a student can edit theirs, not remove it.
+            $this->send_json(405, ['success' => false, 'message' => 'Ratings can\'t be deleted. You can edit your rating instead.']);
         }
 
         $this->send_json(405, ['success' => false, 'message' => 'Method not allowed']);
+    }
+
+    /**
+     * Whether the thing being rated is over: a counseling case the counselor
+     * ended (status "closed"), or a referral that reached Case Closing
+     * (Stage 7) as completed — a rejected referral had no counseling to rate.
+     */
+    private function subject_has_ended(mysqli $conn, string $subjectType, string $subjectId): bool {
+        if ($subjectType === 'counseling_case') {
+            $stmt = $conn->prepare('SELECT status FROM counselor_case_scenarios WHERE case_uid = ? LIMIT 1');
+            if (!$stmt) {
+                return false;
+            }
+            $stmt->bind_param('s', $subjectId);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            return $row && strtolower(trim((string)$row['status'])) === 'closed';
+        }
+
+        if ($subjectType === 'referral') {
+            $stmt = $conn->prepare('SELECT COALESCE(stage, 1) AS stage, COALESCE(status, \'pending\') AS status FROM referral WHERE ReferralID = ? LIMIT 1');
+            if (!$stmt) {
+                return false;
+            }
+            $id = (int)$subjectId;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            return $row && (int)$row['stage'] >= 7 && strtolower(trim((string)$row['status'])) !== 'rejected';
+        }
+
+        return false;
     }
 
     private function send_json(int $statusCode, array $payload): void {
@@ -251,6 +319,12 @@ class StudentRatingsController extends Controller
             INDEX idx_counselor (counselor_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+
+        // When a student last edited their rating (NULL = never edited).
+        $column = $conn->query("SHOW COLUMNS FROM student_ratings LIKE 'updated_at'");
+        if ($column && $column->num_rows === 0) {
+            $conn->query('ALTER TABLE student_ratings ADD COLUMN updated_at DATETIME NULL DEFAULT NULL AFTER created_at');
+        }
     }
 
     private function read_json_body(): array {

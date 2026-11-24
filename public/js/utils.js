@@ -207,13 +207,39 @@ function confirmAction(message, onConfirm, options = {}) {
     overlay.appendChild(content);
     document.body.appendChild(overlay);
 
-    const cleanup = () => overlay.remove();
+    let busy = false;
+    const cleanup = () => { if (!busy) overlay.remove(); };
     closeX.addEventListener('click', cleanup);
     noBtn.addEventListener('click', cleanup);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
     yesBtn.addEventListener('click', () => {
-        cleanup();
-        onConfirm();
+        if (busy) return;
+        const result = onConfirm();
+
+        // A callback that returns a promise (a save still in progress) keeps
+        // the dialog open with a spinner on "Yes" until it finishes, so the
+        // click visibly did something. If it's still running after a moment
+        // (slow connection), the full-screen loading screen from
+        // js/loader.js shows too. Anything else closes the dialog at once.
+        if (!result || typeof result.then !== 'function') {
+            cleanup();
+            return;
+        }
+
+        busy = true;
+        noBtn.disabled = true;
+        yesBtn.disabled = true;
+        yesBtn.setAttribute('aria-busy', 'true');
+        yesBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>';
+        yesBtn.append(options.busyLabel || 'Processing...');
+        closeX.style.visibility = 'hidden';
+        window.gmsBusy?.start(options.busyMessage || 'Processing, please wait...');
+
+        Promise.resolve(result).finally(() => {
+            window.gmsBusy?.stop();
+            busy = false;
+            overlay.remove();
+        });
     });
 }
 
@@ -637,5 +663,301 @@ function renderGradeScopeBadge(elementId) {
 
     el.textContent = roleLabel ? `${roleLabel} · ${label}` : label;
     el.style.display = '';
+}
+
+// ========== SCHOOL SWITCHER (staff dashboards) ==========
+// The SDO can assign one coordinator/counselor account to several schools.
+// A dashboard with an empty #schoolSwitcher shows which school the person
+// is working in and lets them switch to any other school they're assigned
+// to (api/my-schools). Switching changes their school, role and grade scope
+// for the whole app, so the page reloads into that role's dashboard.
+// Single-school accounts see nothing.
+async function initSchoolSwitcher() {
+    const host = document.getElementById('schoolSwitcher');
+    if (!host) return;
+
+    let data;
+    try {
+        const response = await fetch('../../api/my-schools');
+        data = await response.json();
+    } catch (err) {
+        return;
+    }
+    const schools = (data && data.success && Array.isArray(data.schools)) ? data.schools : [];
+    if (schools.length < 2) {
+        host.hidden = true;
+        return;
+    }
+
+    const current = schools.find(s => s.isCurrent) || schools[0];
+    const options = schools.map(s =>
+        `<option value="${escapeHtml(s.schoolCode)}"${s.isCurrent ? ' selected' : ''}>${escapeHtml(s.schoolName)} (${escapeHtml(s.roleLabel)})${s.isCurrent ? ' · current' : ''}</option>`
+    ).join('');
+
+    host.innerHTML = `
+        <section class="school-switcher" aria-labelledby="schoolSwitcherTitle">
+            <div class="school-switcher-current">
+                <span class="school-switcher-icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+                <div class="school-switcher-text">
+                    <div class="school-switcher-label" id="schoolSwitcherTitle">You're working in</div>
+                    <div class="school-switcher-name">${escapeHtml(current.schoolName)}</div>
+                    <div class="school-switcher-sub">
+                        <span class="school-switcher-role">${escapeHtml(current.roleLabel)}</span>
+                        &middot; assigned to ${schools.length} schools by the SDO
+                    </div>
+                </div>
+            </div>
+            <form class="school-switcher-form" id="schoolSwitcherForm">
+                <label for="schoolSwitcherSelect">Switch to another school</label>
+                <div class="school-switcher-row">
+                    <select id="schoolSwitcherSelect">${options}</select>
+                    <button type="submit" class="btn btn-primary btn-sm" id="schoolSwitcherBtn" disabled>
+                        <i class="bi bi-arrow-left-right"></i> Switch
+                    </button>
+                </div>
+                <p class="school-switcher-note" id="schoolSwitcherNote" aria-live="polite">Your records, students and reports follow the school you pick.</p>
+            </form>
+        </section>`;
+    host.hidden = false;
+
+    const select = document.getElementById('schoolSwitcherSelect');
+    const btn = document.getElementById('schoolSwitcherBtn');
+    const note = document.getElementById('schoolSwitcherNote');
+    select.addEventListener('change', () => {
+        const picked = schools.find(s => s.schoolCode === select.value);
+        btn.disabled = !picked || picked.isCurrent;
+        if (picked && !picked.isCurrent && picked.role !== current.role) {
+            note.textContent = `At ${picked.schoolName} you're the ${picked.roleLabel}, so you'll go to that dashboard.`;
+        } else {
+            note.textContent = 'Your records, students and reports follow the school you pick.';
+        }
+    });
+
+    document.getElementById('schoolSwitcherForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const picked = schools.find(s => s.schoolCode === select.value);
+        if (!picked || picked.isCurrent) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Switching…';
+        try {
+            const response = await fetch('../../api/my-schools', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ school: picked.schoolCode })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Could not switch school.');
+            }
+            // The browser's copy of the user drives page requests and labels.
+            syncStoredUser({
+                school_attended: result.user.school,
+                school: result.user.school,
+                role: result.user.role,
+                user_type: result.user.role,
+                grade_scope: result.user.grade || ''
+            });
+            const folder = result.dashboard || 'counselor';
+            window.location.href = `../${folder}/dashboard`;
+        } catch (err) {
+            showAlert(err.message || 'Could not switch school.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-left-right"></i> Switch';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('schoolSwitcher')) initSchoolSwitcher();
+});
+
+// A school switch in one tab must carry over to the person's other open
+// tabs: the server already answers every tab for the new school, so a tab
+// still showing the old school's name and lists would mix the two. The
+// 'storage' event fires in every OTHER tab when localStorage.currentUser
+// changes (syncStoredUser above). Each such tab takes the new school/role
+// into its own sessionStorage copy and reloads, or goes to the new role's
+// dashboard if the role changed (its current page may not be allowed).
+window.addEventListener('storage', (e) => {
+    if (e.key !== 'currentUser' || !e.oldValue || !e.newValue) return;
+    let before, after;
+    try {
+        before = JSON.parse(e.oldValue);
+        after = JSON.parse(e.newValue);
+    } catch (err) {
+        return;
+    }
+    if (!before || !after || String(before.id) !== String(after.id)) return;
+    if (before.school_attended === after.school_attended && before.role === after.role) return;
+
+    syncStoredUser({
+        school_attended: after.school_attended,
+        school: after.school,
+        role: after.role,
+        user_type: after.user_type,
+        grade_scope: after.grade_scope
+    });
+    const route = typeof dashboardRoutes !== 'undefined' ? dashboardRoutes[after.role] : null;
+    if (before.role !== after.role && route) {
+        window.location.href = `../${route}`;
+    } else {
+        window.location.reload();
+    }
+});
+
+// ========== REPORT CASE: COLLAPSIBLE SECTIONS ==========
+// Shared by every Report Case table (counselor/coordinator/other-school
+// report-case.js and sdo/district-report-cases.js). Their display rows run
+// header -> category rows -> section subtotal, per section, then a final
+// Overall Total. On screen each section starts collapsed: its heading row
+// carries the section's per-grade counts and overall total, and clicking it
+// shows the category rows underneath. Exports still list every row.
+
+// Section headings (by label) the user has opened, so a re-render after a
+// filter change keeps them open.
+const reportOpenSections = new Set();
+
+// Maps the flat display rows to their sections: header row index ->
+// { key, totals }, category row index -> its header row index, and the
+// indexes of the section subtotal rows (the section row shows those totals
+// itself, so they aren't drawn separately). The Overall Total row belongs
+// to no section and is left alone.
+function reportSectionLayout(rows) {
+    const sections = new Map();
+    const rowSection = new Map();
+    const sectionSubtotals = new Set();
+    let current = null;
+    rows.forEach((row, i) => {
+        if (row.type === 'header') {
+            current = i;
+            sections.set(i, { key: String(row.label), totals: {} });
+        } else if (current === null) {
+            return;
+        } else if (row.type === 'category') {
+            rowSection.set(i, current);
+        } else if (row.type === 'subtotal') {
+            sections.get(current).totals = row.totals || {};
+            sectionSubtotals.add(i);
+            current = null;
+        }
+    });
+    return { sections, rowSection, sectionSubtotals };
+}
+
+function isReportSectionOpen(key) {
+    return reportOpenSections.has(String(key));
+}
+
+function reportSectionGrandTotal(totals, grades) {
+    return grades.reduce((sum, g) => {
+        const cell = totals[g] || totals[String(g)];
+        return sum + (cell ? (cell.m || 0) + (cell.f || 0) : 0);
+    }, 0);
+}
+
+// First cell of a section's heading row: chevron, section name and its
+// overall total. A real <button> so it's reachable and operable by keyboard.
+function reportSectionToggleCell(label, total, open) {
+    return `<td class="report-section-cell">
+        <button type="button" class="report-section-toggle" aria-expanded="${open ? 'true' : 'false'}">
+            <i class="bi bi-chevron-right report-section-chevron" aria-hidden="true"></i>
+            <span class="report-section-name">${escapeHtml(label)}</span>
+            <span class="report-section-total">Total: ${escapeHtml(total)}</span>
+        </button>
+    </td>`;
+}
+
+function setReportSectionOpen(tbody, headerRow, open) {
+    const key = headerRow.dataset.sectionKey;
+    if (open) {
+        reportOpenSections.add(key);
+    } else {
+        reportOpenSections.delete(key);
+    }
+    headerRow.classList.toggle('is-open', open);
+    const button = headerRow.querySelector('.report-section-toggle');
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    tbody.querySelectorAll(`tr[data-section-of="${headerRow.dataset.sectionToggle}"]`).forEach(tr => {
+        tr.hidden = !open;
+    });
+}
+
+// One delegated listener per table body, however often it's re-rendered,
+// plus an "Expand all / Collapse all" bar added once above the table.
+function wireReportSectionToggles(tbody) {
+    if (!tbody || tbody.dataset.sectionTogglesWired) return;
+    tbody.dataset.sectionTogglesWired = '1';
+    tbody.addEventListener('click', (e) => {
+        const headerRow = e.target.closest('tr[data-section-toggle]');
+        if (!headerRow || !tbody.contains(headerRow)) return;
+        setReportSectionOpen(tbody, headerRow, !headerRow.classList.contains('is-open'));
+    });
+
+    const table = tbody.closest('table');
+    if (!table) return;
+    table.insertAdjacentHTML('beforebegin', `<div class="report-section-toolbar">
+        <span class="report-section-hint"><i class="bi bi-info-circle" aria-hidden="true"></i> Click a section to show its case categories.</span>
+        <span class="report-section-actions">
+            <button type="button" class="btn btn-secondary btn-sm" data-report-sections="expand"><i class="bi bi-arrows-expand" aria-hidden="true"></i> Expand all</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-report-sections="collapse"><i class="bi bi-arrows-collapse" aria-hidden="true"></i> Collapse all</button>
+        </span>
+    </div>`);
+    table.previousElementSibling.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-report-sections]');
+        if (btn) setAllReportSections(tbody, btn.dataset.reportSections === 'expand');
+    });
+}
+
+// ========== TABLE PAGINATION ==========
+// Client-side paging for long tables, with the same bar as the account
+// lists: "< Prev   Showing 1–20 of 137 · Page 1 of 7   Next >".
+// `items` is one HTML string per item; an item may be several <tr>s (a case
+// plus its follow-ups), so they always stay on the same page. `footerHtml`
+// (an Overall Total row, say) is shown under every page. The bar hides
+// itself when everything fits on one page. Works on detached elements, so
+// it can be set up before the table is added to the page.
+function mountPagedTable(tbody, pager, items, { pageSize = 20, emptyHtml = '', footerHtml = '' } = {}) {
+    let page = 1;
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+    const draw = () => {
+        const start = (page - 1) * pageSize;
+        const end = Math.min(start + pageSize, items.length);
+        tbody.innerHTML = items.length ? items.slice(start, end).join('') + footerHtml : emptyHtml;
+
+        if (items.length <= pageSize) {
+            pager.innerHTML = '';
+            pager.hidden = true;
+            return;
+        }
+        pager.hidden = false;
+        pager.innerHTML = `
+            <button type="button" class="btn btn-secondary btn-sm" data-page="prev" ${page <= 1 ? 'disabled' : ''}>
+                <i class="bi bi-chevron-left"></i> Prev
+            </button>
+            <span class="accounts-page-info">Showing ${start + 1}&ndash;${end} of ${items.length} &middot; Page ${page} of ${totalPages}</span>
+            <button type="button" class="btn btn-secondary btn-sm" data-page="next" ${page >= totalPages ? 'disabled' : ''}>
+                Next <i class="bi bi-chevron-right"></i>
+            </button>`;
+    };
+
+    // A pager re-mounted on the same element (e.g. after a filter change)
+    // replaces its previous click handler instead of stacking another.
+    if (pager._pagedTableHandler) pager.removeEventListener('click', pager._pagedTableHandler);
+    pager._pagedTableHandler = (e) => {
+        const btn = e.target.closest('button[data-page]');
+        if (!btn || btn.disabled) return;
+        page = Math.min(totalPages, Math.max(1, page + (btn.dataset.page === 'next' ? 1 : -1)));
+        draw();
+    };
+    pager.addEventListener('click', pager._pagedTableHandler);
+    draw();
+}
+
+// Expand/Collapse every section of a table at once.
+function setAllReportSections(tbody, open) {
+    if (!tbody) return;
+    tbody.querySelectorAll('tr[data-section-toggle]').forEach(row => setReportSectionOpen(tbody, row, open));
 }
 

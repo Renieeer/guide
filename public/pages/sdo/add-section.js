@@ -53,14 +53,14 @@ function loadSections() {
             return response.json();
         })
         .then(result => {
-            if (!result.success) throw new Error(result.message || 'Failed to load sections');
+            if (!result.success) throw new Error(result.message || 'Failed to load categories');
             allSections = (result.sections || []).slice().sort((a, b) => a.SectionID - b.SectionID);
             renderSections();
         })
         .catch(error => {
             console.error('Error loading sections:', error);
             document.getElementById('sectionsTableBody').innerHTML =
-                `<tr><td colspan="3" class="no-accounts"><i class="bi bi-exclamation-triangle"></i> <p>Unable to load sections</p></td></tr>`;
+                `<tr><td colspan="3" class="no-accounts"><i class="bi bi-exclamation-triangle"></i> <p>Unable to load categories</p></td></tr>`;
         });
 }
 
@@ -96,8 +96,8 @@ function confirmAddSection() {
     })
         .then(response => response.json())
         .then(result => {
-            if (!result.success) throw new Error(result.message || 'Failed to add section');
-            showAlert('Section added successfully!', 'success');
+            if (!result.success) throw new Error(result.message || 'Failed to add category');
+            showAlert('Category added successfully!', 'success');
             input.value = '';
             loadSections();
         })
@@ -156,8 +156,8 @@ function confirmEditSection() {
     })
         .then(response => response.json())
         .then(result => {
-            if (!result.success) throw new Error(result.message || 'Failed to update section');
-            showAlert('Section updated successfully!', 'success');
+            if (!result.success) throw new Error(result.message || 'Failed to update category');
+            showAlert('Category updated successfully!', 'success');
             loadSections();
         })
         .catch(error => showAlert('Error: ' + error.message, 'error'));
@@ -178,7 +178,7 @@ function renderSections() {
 
     const tbody = document.getElementById('sectionsTableBody');
     if (pageRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="no-accounts"><i class="bi bi-inbox"></i> <p>No sections found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" class="no-accounts"><i class="bi bi-inbox"></i> <p>No categories found</p></td></tr>`;
     } else {
         tbody.innerHTML = pageRows.map((section, i) => `
             <tr>

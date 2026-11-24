@@ -31,6 +31,10 @@ const REFERRAL_API_ROLE = {
 // --info, --danger-color, --role-coordinator, --role-teacher, --primary-color.
 const CHART_COLORS = { navy: '#123a6b', green: '#1b7f5a', amber: '#a15c00', blue: '#1d5aa8', red: '#b3261e', purple: '#6a4fa3', teal: '#0e6e6e', darknavy: '#0b1f3a' };
 const CHART_CAT = [CHART_COLORS.navy, CHART_COLORS.green, CHART_COLORS.amber, CHART_COLORS.blue, CHART_COLORS.red, CHART_COLORS.purple, CHART_COLORS.teal, CHART_COLORS.darknavy];
+// "Referrals by Reason": how many reasons get their own bar before the rest
+// fold into one muted "Other" bar.
+const REASON_CHART_TOP = 10;
+const REASON_OTHER_COLOR = '#8494a7';
 const STATUS_CHART_COLOR = { approved: CHART_COLORS.green, closed: CHART_COLORS.green, completed: CHART_COLORS.green, pending: CHART_COLORS.amber, rejected: CHART_COLORS.red, cancelled: CHART_COLORS.red };
 // Maps this dashboard's real status values onto the 4 categories
 // js/utils.js's createBadge() already knows how to color.
@@ -83,6 +87,12 @@ function reasonGenderBreakdown(rows) {
         return m;
     }, {});
 }
+// An appointment's reason for the 7.1/7.2 reports: the reason on the referral
+// behind it (api/appointment-request's referral_reason, e.g. "Poor academic
+// performance"), else the linked case's Case Section, else the appointment's
+// own reason (a student's online booking category). The raw reason alone is
+// auto-filled with a case/referral ID for staff-scheduled appointments.
+function appointmentReason(r) { return r.referral_reason || r.case_section || r.reason || ''; }
 function meta(key) { return REPORTS.find(r => r.key === key); }
 function gradeLabel(rawGrade, isElementary = isElementarySchool) { const n = normalizeGradeNumber(rawGrade, isElementary); return n ? `Grade ${n}` : (rawGrade || 'N/A'); }
 function badge(status) { return createBadge(BADGE_STATUS[String(status || '').toLowerCase()] || 'pending'); }
@@ -376,7 +386,7 @@ function renderAppointments(key) {
                             gradeLabel(r.grade),
                             r.preferred_date || 'N/A',
                             r.preferred_time || 'N/A',
-                            r.case_section || r.reason || 'N/A'
+                            appointmentReason(r) || 'N/A'
                         ]),
                         styles: { fontSize: 9 },
                         headStyles: { fillColor: [18, 58, 107] },
@@ -397,7 +407,7 @@ function renderAppointments(key) {
                             gradeLabel(r.grade),
                             r.preferred_date || 'N/A',
                             r.preferred_time || 'N/A',
-                            r.case_section || r.reason || 'N/A',
+                            appointmentReason(r) || 'N/A',
                             r.scheduled_by_name || 'N/A'
                         ]),
                         styles: { fontSize: 9 },
@@ -454,32 +464,47 @@ function renderAppointments(key) {
                 <td>${esc(gradeLabel(r.grade))}</td>
                 <td>${esc(r.preferred_date || 'N/A')}</td>
                 <td>${esc(r.preferred_time || 'N/A')}</td>
-                <td>${esc(r.case_section || r.reason || 'N/A')}</td>
+                <td>${esc(appointmentReason(r) || 'N/A')}</td>
                 ${isOnline ? '' : `<td>${esc(r.scheduled_by_name || 'N/A')}</td>`}
-            </tr>`).join('');
+            </tr>`);
         const colCount = isOnline ? 6 : 7;
-        frag.append(el(`<div style="margin-bottom:28px;">
+        // Paged 20 at a time (mountPagedTable, js/utils.js); the PDF export
+        // above still lists every appointment.
+        const block = el(`<div style="margin-bottom:28px;">
             <h3 class="text-primary">Appointment List</h3>
             <div class="table-container"><table>
                 <thead><tr><th>#</th><th>Student Name</th><th>Grade</th><th>Appointment Date</th><th>Time</th><th>Reason</th>${isOnline ? '' : '<th>Scheduled By</th>'}</tr></thead>
-                <tbody>${listRows || `<tr><td colspan="${colCount}" class="text-center text-muted" style="padding:30px;">No ${isOnline ? 'online' : 'counseling'} appointments recorded for your school yet.</td></tr>`}</tbody>
-            </table></div>
-        </div>`));
+                <tbody></tbody>
+            </table><div class="accounts-pagination" hidden></div></div>
+        </div>`);
+        mountPagedTable(block.querySelector('tbody'), block.querySelector('.accounts-pagination'), listRows, {
+            pageSize: 20,
+            emptyHtml: `<tr><td colspan="${colCount}" class="text-center text-muted" style="padding:30px;">No ${isOnline ? 'online' : 'counseling'} appointments recorded for your school yet.</td></tr>`
+        });
+        frag.append(block);
     }
 
     queueMicrotask(() => {
         const sl = Object.keys(st);
         mkChart($('#chStatus'), { type: 'doughnut', data: { labels: sl, datasets: [{ data: sl.map(k => st[k]), backgroundColor: sl.map(k => STATUS_CHART_COLOR[k] || CHART_COLORS.navy), borderColor: '#fff', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '58%', ...legendRight } });
 
-        // Grouped by the linked counseling case's Case Section
-        // (api/appointment-request's case_section, from
-        // counselor_case_scenarios.section_name) rather than the appointment's
-        // own free-text reason, which for staff-scheduled follow-ups is just
-        // an auto-filled "Follow-up for case CS-..." string — not a real
-        // reason category. Falls back to the raw reason for appointments
-        // never linked to a case (e.g. a student's own online booking).
-        const rb = countBy(rows, r => r.case_section || r.reason); const rl = Object.keys(rb);
-        mkChart($('#chReason'), { type: 'bar', data: { labels: rl, datasets: [{ data: rl.map(k => rb[k]), backgroundColor: CHART_COLORS.navy, borderRadius: 5, maxBarThickness: 46 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, ...noLegend, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eaeef3' } }, y: { grid: { display: false } } } } });
+        // Grouped by the common referral reasons (see appointmentReason), one
+        // count per reason a referral lists, most frequent first. Long
+        // reasons are shortened on the axis; the tooltip shows them in full.
+        // Names differing only in case ("POOR ACADEMIC PERFORMANCE" from a
+        // case section vs. the referral form's "Poor academic performance")
+        // share one bar, labelled with the non-all-caps spelling.
+        const rb = {};
+        Object.entries(countByReason(rows, appointmentReason)).forEach(([label, n]) => {
+            const same = Object.keys(rb).find(k => k.toLowerCase() === label.toLowerCase());
+            if (!same) { rb[label] = n; return; }
+            const total = rb[same] + n;
+            delete rb[same];
+            rb[same === same.toUpperCase() ? label : same] = total;
+        });
+        const rl = Object.keys(rb).sort((a, b) => rb[b] - rb[a] || a.localeCompare(b));
+        const shortLabel = function (v) { const l = String(this.getLabelForValue(v)); return l.length > 30 ? l.slice(0, 29) + '…' : l; };
+        mkChart($('#chReason'), { type: 'bar', data: { labels: rl, datasets: [{ data: rl.map(k => rb[k]), backgroundColor: CHART_COLORS.navy, borderRadius: 5, maxBarThickness: 46 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, ...noLegend, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eaeef3' } }, y: { grid: { display: false }, ticks: { callback: shortLabel } } } } });
 
         const db = countBy(rows, r => r.preferred_date); const dl = Object.keys(db).sort();
         mkChart($('#chTrend'), { type: 'line', data: { labels: dl.map(d => d.slice(5)), datasets: [{ data: dl.map(k => db[k]), borderColor: CHART_COLORS.navy, backgroundColor: 'rgba(18,58,107,.10)', fill: true, tension: .35, pointBackgroundColor: CHART_COLORS.navy, pointRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, ...noLegend, scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eaeef3' } }, x: { grid: { display: false } } } } });
@@ -563,7 +588,10 @@ function renderReferrals() {
         { num: new Set(referrals.map(r => r.student_name)).size, lbl: 'Students referred', icon: 'bi-people', color: 'green' },
     ])));
 
-    frag.append(el(`<div style="margin-bottom:20px;">${chartTile('chReasons', 'Referrals by Reason (All)', true)}</div>`));
+    const otherReasonCount = Math.max(0, reasons.length - REASON_CHART_TOP);
+    frag.append(el(`<div style="margin-bottom:20px;">${chartTile('chReasons', 'Referrals by Reason', true)}${otherReasonCount
+        ? `<p class="text-muted" style="font-size:12.5px; margin:8px 4px 0;">Showing the top ${REASON_CHART_TOP} reasons; the other ${otherReasonCount} are grouped as "Other". The Reason Breakdown table below lists every reason.</p>`
+        : ''}</div>`));
     frag.append(el(`<div style="max-width:480px; margin-bottom:28px;">${chartTile('chUrgency', 'By Urgency')}</div>`));
 
     if (total === 0) {
@@ -572,15 +600,73 @@ function renderReferrals() {
         const tr = reasons.map(r => {
             const g = genderMap[r.reason] || { male: 0, female: 0 };
             return `<tr><td>${esc(r.reason)}</td><td style="text-align:right;">${escapeHtml(r.count)}</td><td style="text-align:right;">${escapeHtml(g.male)}</td><td style="text-align:right;">${escapeHtml(g.female)}</td></tr>`;
-        }).join('');
-        frag.append(el(`<div><h3 class="text-primary">Reason Breakdown</h3><div class="table-container"><table>
+        });
+        // Paged 10 reasons at a time, with the Overall Total row (for all
+        // reasons) under every page; the PDF export lists every reason.
+        const block = el(`<div><h3 class="text-primary">Reason Breakdown</h3><div class="table-container"><table>
             <thead><tr><th>Referral Reason</th><th style="text-align:right;">Number of Referrals</th><th style="text-align:right;">Male</th><th style="text-align:right;">Female</th></tr></thead>
-            <tbody>${tr}<tr style="font-weight:700;"><td>Overall Total</td><td style="text-align:right;">${escapeHtml(totalReasonCount)}</td><td style="text-align:right;">${escapeHtml(totalMale)}</td><td style="text-align:right;">${escapeHtml(totalFemale)}</td></tr></tbody>
-        </table></div></div>`));
+            <tbody></tbody>
+        </table><div class="accounts-pagination" hidden></div></div></div>`);
+        mountPagedTable(block.querySelector('tbody'), block.querySelector('.accounts-pagination'), tr, {
+            pageSize: 10,
+            footerHtml: `<tr style="font-weight:700;"><td>Overall Total</td><td style="text-align:right;">${escapeHtml(totalReasonCount)}</td><td style="text-align:right;">${escapeHtml(totalMale)}</td><td style="text-align:right;">${escapeHtml(totalFemale)}</td></tr>`
+        });
+        frag.append(block);
     }
 
     queueMicrotask(() => {
-        mkChart($('#chReasons'), { type: 'bar', data: { labels: reasons.map(r => r.reason), datasets: [{ data: reasons.map(r => r.count), backgroundColor: reasons.map((_, i) => CHART_CAT[i % CHART_CAT.length]), borderRadius: 5 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, ...noLegend, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eaeef3' } }, y: { grid: { display: false } } } } });
+        // One series, so one color for every bar (the axis label names the
+        // reason). Only the top reasons get their own bar; the long tail —
+        // often one-off typed-in reasons — folds into a single gray "Other"
+        // bar. Long labels are shortened on the axis and shown in full in
+        // the tooltip; the Reason Breakdown table lists every reason.
+        const top = reasons.slice(0, REASON_CHART_TOP);
+        const rest = reasons.slice(REASON_CHART_TOP);
+        const bars = top.map(r => ({ label: r.reason, count: r.count }));
+        if (rest.length) {
+            bars.push({
+                label: `Other (${rest.length} reasons)`,
+                count: rest.reduce((sum, r) => sum + r.count, 0),
+                members: rest
+            });
+        }
+        const shortReason = function (v) { const l = String(this.getLabelForValue(v)); return l.length > 34 ? l.slice(0, 33) + '…' : l; };
+        mkChart($('#chReasons'), {
+            type: 'bar',
+            data: {
+                labels: bars.map(b => b.label),
+                datasets: [{
+                    data: bars.map(b => b.count),
+                    backgroundColor: bars.map(b => (b.members ? REASON_OTHER_COLOR : CHART_COLORS.navy)),
+                    borderRadius: 4,
+                    maxBarThickness: 22
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    ...noLegend.plugins,
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => bars[items[0].dataIndex].label,
+                            label: (ctx) => ` ${ctx.parsed.x} referral${ctx.parsed.x === 1 ? '' : 's'}`,
+                            afterBody: (items) => {
+                                const b = bars[items[0].dataIndex];
+                                if (!b.members) return [];
+                                const shown = b.members.slice(0, 5).map(m => `• ${m.reason.length > 40 ? m.reason.slice(0, 39) + '…' : m.reason} (${m.count})`);
+                                return b.members.length > 5 ? [...shown, `…and ${b.members.length - 5} more`] : shown;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eaeef3' } },
+                    y: { grid: { display: false }, ticks: { callback: shortReason } }
+                }
+            }
+        });
         const ub = countBy(referrals, r => r.urgency || 'normal'); const ul = Object.keys(ub);
         mkChart($('#chUrgency'), { type: 'doughnut', data: { labels: ul, datasets: [{ data: ul.map(k => ub[k]), backgroundColor: ul.map((_, i) => CHART_CAT[i % CHART_CAT.length]), borderColor: '#fff', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '55%', ...legendRight } });
     });
@@ -714,21 +800,34 @@ function renderChild() {
     const followUpsByCase = {};
     followUps.forEach(f => { (followUpsByCase[f.case_uid] = followUpsByCase[f.case_uid] || []).push(f); });
 
+    // One item per case (its follow-up rows ride along), so a case and its
+    // follow-ups never split across pages.
     const caseRows = cases.map(c => {
         const cidStyle = 'font-family:monospace; color:var(--secondary-color); font-weight:600;';
         const fus = (followUpsByCase[c.case_uid] || []).map(f => `<tr><td></td><td><span style="${cidStyle}">${esc(f.follow_up_id)}</span></td><td>${esc(f.follow_up_date || 'N/A')}</td><td colspan="2">${esc(f.note || '')}</td></tr>`).join('');
         return `<tr><td><span style="${cidStyle}">${esc(c.case_uid)}</span></td><td>${esc(c.case_date || 'N/A')}</td><td>${esc(c.category_name || c.case_title || 'N/A')}</td><td>${esc(c.counselor_name || 'N/A')}</td><td>${badge(c.status)}</td></tr>${fus}`;
-    }).join('');
+    });
 
-    const caseHistoryHtml = `<h3 class="text-primary">Case History &amp; Follow-ups</h3><div class="table-container"><table><thead><tr><th>Case / Follow-up ID</th><th>Opened / Date</th><th>Category / Note</th><th>Counselor</th><th>Status</th></tr></thead><tbody>${caseRows || '<tr><td colspan="5" class="text-center text-muted" style="padding:30px;">No counseling cases on record.</td></tr>'}</tbody></table></div>`;
+    const caseHistoryHtml = `<h3 class="text-primary">Case History &amp; Follow-ups</h3><div class="table-container"><table><thead><tr><th>Case / Follow-up ID</th><th>Opened / Date</th><th>Category / Note</th><th>Counselor</th><th>Status</th></tr></thead><tbody data-paged="cases"></tbody></table><div class="accounts-pagination" data-pager="cases" hidden></div></div>`;
 
-    const refRows = studentReferrals.map(r => `<tr><td>${esc(r.referral_code || r.id)}</td><td>${esc(r.date_submitted)}</td><td>${esc(r.referral_reason)}</td><td>${badge(r.status)}</td></tr>`).join('');
-    const referralHistoryHtml = `<h3 class="text-primary">Referral History</h3><div class="table-container"><table><thead><tr><th>Referral ID</th><th>Submitted</th><th>Reason</th><th>Status</th></tr></thead><tbody>${refRows || '<tr><td colspan="4" class="text-center text-muted" style="padding:30px;">No referrals on record.</td></tr>'}</tbody></table></div>`;
+    const refRows = studentReferrals.map(r => `<tr><td>${esc(r.referral_code || r.id)}</td><td>${esc(r.date_submitted)}</td><td>${esc(r.referral_reason)}</td><td>${badge(r.status)}</td></tr>`);
+    const referralHistoryHtml = `<h3 class="text-primary">Referral History</h3><div class="table-container"><table><thead><tr><th>Referral ID</th><th>Submitted</th><th>Reason</th><th>Status</th></tr></thead><tbody data-paged="referrals"></tbody></table><div class="accounts-pagination" data-pager="referrals" hidden></div></div>`;
 
-    frag.append(el(`<div class="mb-4 an-pair" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
+    const historyBlock = el(`<div class="mb-4 an-pair" style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
         <div>${caseHistoryHtml}</div>
         <div style="border-left:1px solid var(--border-color); padding-left:24px;">${referralHistoryHtml}</div>
-    </div>`));
+    </div>`);
+    // 10 per page each (mountPagedTable, js/utils.js); the PDF export still
+    // lists the full history.
+    mountPagedTable(historyBlock.querySelector('[data-paged="cases"]'), historyBlock.querySelector('[data-pager="cases"]'), caseRows, {
+        pageSize: 10,
+        emptyHtml: '<tr><td colspan="5" class="text-center text-muted" style="padding:30px;">No counseling cases on record.</td></tr>'
+    });
+    mountPagedTable(historyBlock.querySelector('[data-paged="referrals"]'), historyBlock.querySelector('[data-pager="referrals"]'), refRows, {
+        pageSize: 10,
+        emptyHtml: '<tr><td colspan="4" class="text-center text-muted" style="padding:30px;">No referrals on record.</td></tr>'
+    });
+    frag.append(historyBlock);
 
     if (hasCases) {
         queueMicrotask(() => {
